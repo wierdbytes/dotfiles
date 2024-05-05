@@ -2,9 +2,15 @@
 
 set -eufo pipefail
 
+{{ $taps := list
+     "felixkratz/formulae"
+     "koekeishiya/formulae"
+     "yqrashawn/goku"
+     "homebrew/cask-fonts" -}}
 {{ $brews := list
      "eza"
      "koekeishiya/formulae/yabai"
+     "koekeishiya/formulae/skhd"
      "FelixKratz/formulae/sketchybar"
      "yqrashawn/goku/goku"
      "fzf"
@@ -21,6 +27,10 @@ set -eufo pipefail
      "homebrew/cask-fonts/font-meslo-lg-nerd-font"
      "homebrew/cask-fonts/font-jetbrains-mono-nerd-font"
      "hammerspoon" -}}
+
+{{ range ($taps | sortAlpha | uniq) -}}
+brew tap "{{ . }}"
+{{ end -}}
 
 brew bundle --no-lock --file=/dev/stdin <<EOF
 {{ range ($brews | sortAlpha | uniq) -}}
