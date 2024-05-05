@@ -2,12 +2,21 @@
 
 set -eufo pipefail
 
+brew tap FelixKratz/formulae
+
 {{ $brews := list
      "eza"
+     "sketchybar"
      "fzf"
+     "lua"
+     "switchaudio-osx"
+     "nowplaying-cli"
      "jq" -}}
 {{ $casks := list
      "karabiner-elements"
+     "sf-symbols"
+     "homebrew/cask-fonts/font-sf-mono"
+     "homebrew/cask-fonts/font-sf-pro"
      "hammerspoon" -}}
 
 brew bundle --no-lock --file=/dev/stdin <<EOF
