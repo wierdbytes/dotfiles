@@ -158,7 +158,37 @@ source /opt/homebrew/share/powerlevel10k/powerlevel10k.zsh-theme
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 source /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 
-# ---- FZF -----
-
-# Set up fzf key bindings and fuzzy completion
+# ---- FZF ----
 eval "$(fzf --zsh)"
+
+## List of bindings
+## CTRL-t	Look for files and directories
+## CTRL-r	Look through command history
+## Enter	Select the item
+## Ctrl-j or Ctrl-n or Down arrow	Go down one result
+## Ctrl-k or Ctrl-p or Up arrow	Go up one result
+## Tab	Mark a result
+## Shift-Tab	Unmark a result
+## cd **Tab	Open up fzf to find directory
+## export **Tab	Look for env variable to export
+## unset **Tab	Look for env variable to unset
+## unalias **Tab	Look for alias to unalias
+## ssh **Tab	Look for recently visited host names
+## kill -9 **Tab	Look for process name to kill to get pid
+## any command (like nvim or code) + **Tab	Look for files & directories to complete command
+# -------------
+
+# ---- FZF-GIT ----
+source ~/.local/share/fzf-git/fzf-git.sh
+
+## List of bindings
+## CTRL-G F for Files
+## CTRL-G B for Branches
+## CTRL-G T for Tags
+## CTRL-G R for Remotes
+## CTRL-G H for commit Hashes
+## CTRL-G S for Stashes
+## CTRL-G L for reflogs
+## CTRL-G W for Worktrees
+## CTRL-G E for Each ref (git for-each-ref)
+# -----------------

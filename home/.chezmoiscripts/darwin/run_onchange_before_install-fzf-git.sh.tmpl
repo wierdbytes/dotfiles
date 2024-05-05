@@ -1,0 +1,17 @@
+#!/bin/bash
+
+FZF_GIT_DIR="{{ .chezmoi.homeDir }}/.local/share/fzf-git"
+
+echo "[fzf-git] Checking for fzf-git configuration..."
+
+if [ -d "$FZF_GIT_DIR" ]; then
+    echo "[fzf-git] Directory exists: $FZF_GIT_DIR. Done."
+    exit 0
+else
+    echo "[fzf-git] Directory does not exist. Cloning fzf-git..."
+    mkdir -p "$(dirname "$FZF_GIT_DIR")"
+    git clone https://github.com/junegunn/fzf-git.sh.git "$FZF_GIT_DIR"
+    echo "[fzf-git] Cloning completed!"
+fi
+
+echo "[fzf-git] Done!"
