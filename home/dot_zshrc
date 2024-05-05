@@ -144,6 +144,7 @@ alias kxp='kubectl --kubeconfig ~/.kube/kxp'
 alias ls="eza --icons=always -l"
 alias lsa="eza --icons=always -l --all --all"
 alias lst="eza --icons=always -l -T"
+alias lg="lazygit"
 
 test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh"
 
