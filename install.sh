@@ -15,4 +15,4 @@ Linux)
     ;;
 esac
 
-chezmoi init --apply https://github.com/wierdbytes/dotfiles.git
+chezmoi init --apply git@github.com:wierdbytes/dotfiles.git
