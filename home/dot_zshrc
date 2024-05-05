@@ -245,3 +245,10 @@ source ~/.local/share/fzf-git/fzf-git.sh
 # ----- Bat (better cat) -----
 
 export BAT_THEME="Dracula"
+
+# ---- history tweaks ----
+
+export HISTFILE="$HOME/.zsh_history"
+export HISTSIZE=1000000000
+export SAVEHIST=1000000000
+setopt EXTENDED_HISTORY
