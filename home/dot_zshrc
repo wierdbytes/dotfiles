@@ -158,8 +158,57 @@ source /opt/homebrew/share/powerlevel10k/powerlevel10k.zsh-theme
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 source /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 
-# ---- FZF ----
+# ---- fzf ----
 eval "$(fzf --zsh)"
+
+# -- Use fd instead of fzf --
+export FZF_DEFAULT_COMMAND="fd --hidden --strip-cwd-prefix --exclude .git"
+export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
+export FZF_ALT_C_COMMAND="fd --type=d --hidden --strip-cwd-prefix --exclude .git"
+
+# Use fd (https://github.com/sharkdp/fd) for listing path candidates.
+# - The first argument to the function ($1) is the base path to start traversal
+# - See the source code (completion.{bash,zsh}) for the details.
+_fzf_compgen_path() {
+  fd --hidden --exclude .git . "$1"
+}
+
+# Use fd to generate the list for directory completion
+_fzf_compgen_dir() {
+  fd --type=d --hidden --exclude .git . "$1"
+}
+
+# ---- fzf pretty preview ----
+show_file_or_dir_preview="if [ -d {} ]; then eza --tree --color=always {} | head -200; else bat -n --color=always --line-range :500 {}; fi"
+
+export FZF_CTRL_T_OPTS="--preview '$show_file_or_dir_preview'"
+export FZF_ALT_C_OPTS="--preview 'eza --tree --color=always {} | head -200'"
+
+# Advanced customization of fzf options via _fzf_comprun function
+# - The first argument to the function is the name of the command.
+# - You should make sure to pass the rest of the arguments to fzf.
+_fzf_comprun() {
+  local command=$1
+  shift
+
+  case "$command" in
+    cd)           fzf --preview 'eza --tree --color=always {} | head -200' "$@" ;;
+    export|unset) fzf --preview "eval 'echo ${}'"         "$@" ;;
+    ssh)          fzf --preview 'dig {}'                   "$@" ;;
+    *)            fzf --preview "$show_file_or_dir_preview" "$@" ;;
+  esac
+}
+
+# --- setup fzf theme ---
+# https://vitormv.github.io/fzf-themes#eyJib3JkZXJTdHlsZSI6InJvdW5kZWQiLCJib3JkZXJMYWJlbCI6IiIsImJvcmRlckxhYmVsUG9zaXRpb24iOjAsInByZXZpZXdCb3JkZXJTdHlsZSI6InJvdW5kZWQiLCJwYWRkaW5nIjoiMCIsIm1hcmdpbiI6IjAiLCJwcm9tcHQiOiI+ICIsIm1hcmtlciI6Ij4iLCJwb2ludGVyIjoi4peGIiwic2VwYXJhdG9yIjoi4pSAIiwic2Nyb2xsYmFyIjoi4pSCIiwibGF5b3V0IjoicmV2ZXJzZSIsImluZm8iOiJkZWZhdWx0IiwiY29sb3JzIjoiZmc6I2Q2ZDNkMyxmZys6I2ZmZmZmZixiZzojMjYyNjI2LGJnKzojMjYyNjI2LGhsOiNmMzhiYTgsaGwrOiNmMzhiYTgsaW5mbzojM2E4NWFiLG1hcmtlcjojOTVhODYzLHByb21wdDojM2E4NWFiLHNwaW5uZXI6I2Y1ZTBkYyxwb2ludGVyOiM5NWE4NjMsaGVhZGVyOiNmMzhiYTgsYm9yZGVyOiMwMzAzMDMsbGFiZWw6I2FlYWVhZSxxdWVyeTojZWZlZmVmIn0=
+export FZF_DEFAULT_OPTS='
+  --color=fg:#d6d3d3,fg+:#ffffff,bg:-1,bg+:#262626
+  --color=hl:#f38ba8,hl+:#f38ba8,info:#3a85ab,marker:#95a863
+  --color=prompt:#3a85ab,spinner:#f5e0dc,pointer:#95a863,header:#f38ba8
+  --color=border:#030303,label:#aeaeae,query:#efefef
+  --border="rounded" --border-label="" --preview-window="border-rounded" --prompt="> "
+  --marker="◆" --pointer=">" --separator="─" --scrollbar="│"
+  --layout="reverse"'
 
 ## List of bindings
 ## CTRL-t	Look for files and directories
@@ -178,7 +227,7 @@ eval "$(fzf --zsh)"
 ## any command (like nvim or code) + **Tab	Look for files & directories to complete command
 # -------------
 
-# ---- FZF-GIT ----
+# ---- fzf-git ----
 source ~/.local/share/fzf-git/fzf-git.sh
 
 ## List of bindings
@@ -192,3 +241,7 @@ source ~/.local/share/fzf-git/fzf-git.sh
 ## CTRL-G W for Worktrees
 ## CTRL-G E for Each ref (git for-each-ref)
 # -----------------
+
+# ----- Bat (better cat) -----
+
+export BAT_THEME="Dracula"
