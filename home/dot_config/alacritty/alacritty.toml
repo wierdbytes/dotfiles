@@ -1,0 +1,29 @@
+[env]
+TERM = "xterm-256color"
+
+[window]
+padding.x = 10
+# padding.y = 10
+
+decorations = "Buttonless"
+
+opacity = 0.7
+blur = true
+
+option_as_alt = "Both"
+position.y = 50
+dimensions.lines = 42
+dimensions.columns = 500
+
+
+[font]
+normal.family = "MesloLGS Nerd Font Mono"
+# normal.family = "JetBrainsMono Nerd Font"
+
+size = 14
+
+[keyboard]
+bindings = [{ key = "Return", mods = "Command", action = "ToggleFullScreen" }]
+# bindings = [
+#   { key = "Return", mods = "Command", action = "ToggleSimpleFullscreen" },
+# ]
