@@ -1,0 +1,100 @@
+[
+  {
+    "bindings": {
+      "cmd-alt-o": "projects::OpenRecent",
+      "cmd-alt-b": "branches::OpenRecent",
+      "cmd-alt-left": "pane::ActivatePrevItem",
+      // "alt-о": "pane::ActivatePrevItem",
+      "cmd-alt-right": "pane::ActivateNextItem"
+      // "alt-л": "pane::ActivateNextItem"
+    }
+  },
+
+  // Russian layout
+  {
+    "context": "Editor && VimControl && !VimWaiting && !menu",
+    "bindings": {
+      "ш": [
+        "vim::PushOperator",
+        {
+          "Object": {
+            "around": false
+          }
+        }
+      ],
+      "ф": [
+        "vim::PushOperator",
+        {
+          "Object": {
+            "around": true
+          }
+        }
+      ],
+      "о": "vim::Down",
+      "л": "vim::Up",
+      "р": "vim::Left",
+      "д": "vim::Right"
+    }
+  },
+
+  {
+    "context": "Editor && VimControl && !VimWaiting && !menu",
+    "bindings": {
+      "z f": "editor::Fold",
+      "z a": "editor::UnfoldLines",
+      "ctrl-s r": "pane::SplitRight",
+      "ctrl-s ctrl-r": "pane::SplitRight",
+      "ctrl-s l": "pane::SplitLeft",
+      "ctrl-s ctrl-l": "pane::SplitLeft",
+      "ctrl-s d": "pane::SplitDown",
+      "ctrl-s ctrl-d": "pane::SplitDown",
+      "ctrl-s u": "pane::SplitUp",
+      "ctrl-s ctrl-u": "pane::SplitUp"
+    }
+  },
+
+  {
+    "context": "TabSwitcher",
+    "bindings": {
+      "x": "tab_switcher::CloseSelectedItem"
+    }
+  },
+
+  {
+    "context": "Editor",
+    "bindings": {
+      "cmd-d": [
+        "editor::SelectNext",
+        {
+          "replace_newest": false
+        }
+      ]
+    }
+  },
+
+  {
+    "context": "Editor && vim_mode == normal && (vim_operator == none || vim_operator == n) && !VimWaiting",
+    "bindings": {
+      // put key-bindings here if you want them to work only in normal mode
+      "g t": "tab_switcher::Toggle",
+      "g d": "editor::GoToDefinition",
+      "g ctrl-d": "editor::GoToDefinitionSplit",
+      "g i": "editor::GoToImplementation",
+      "g ctrl-i": "editor::GoToImplementationSplit",
+      "g r": "editor::FindAllReferences",
+      "g b": "pane::GoBack",
+      "g f": "pane::GoForward",
+      "g l": "go_to_line::Toggle",
+      "g o": "project_symbols::Toggle",
+      "t h": "editor::ToggleInlayHints"
+      // "[ d": "editor::GoToPrevDiagnostic",
+      // "] d": "editor::GoToDiagnostic"
+    }
+  },
+  {
+    "context": "Workspace",
+    "bindings": {
+      "alt-o": ["task::Spawn", { "task_name": "Open on Obsidian" }]
+    }
+  }
+]
