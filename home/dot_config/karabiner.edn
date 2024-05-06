@@ -1,0 +1,597 @@
+{
+    :devices {
+        :zmk [{:vendor_id 7504 :product_id 24926}]
+        :mac-keys [{:vendor_id 1452 :product_id 641}]
+        }
+    :simlayer-threshold 300
+    :simlayers {
+        :1L {:key :1 :condi :mac-keys}
+        :2L {:key :2 :condi :mac-keys}
+        :3L {:key :3 :condi :mac-keys}
+        :4L {:key :4 :condi :mac-keys}
+        :5L {:key :5 :condi :mac-keys}
+        :6L {:key :6 :condi :mac-keys}
+        :7L {:key :7 :condi :mac-keys}
+        :8L {:key :8 :condi :mac-keys}
+        :9L {:key :9 :condi :mac-keys}
+        :10L {:key :0 :condi :mac-keys}
+        :11L {:key :hyphen :condi :mac-keys}
+        :12L {:key :equal_sign :condi :mac-keys}
+        }
+    :input-sources {
+        :ru {:input_source_id "com.apple.keylayout.Russian"
+                :language "ru"}
+        :en {:input_source_id "com.apple.keylayout.US"
+                :language "en"}
+        }
+    :applications {
+        :iterm2   ["^com\\.googlecode\\.iterm2$"]
+        :vscode   ["^com\\.microsoft\\.VSCode$"]
+        :bear     ["^net\\.shinyfrog\\.bear$"]
+        :ffox     ["^org\\.mozilla\\.firefox$"]
+        :zoom     ["^us\\.zoom\\.xos$"]
+        :discord  ["^com\\.hnc\\.Discord$"]
+        :telegram ["^ru\\.keepcoder\\.Telegram$"]
+        :msteams  ["^com\\.microsoft\\.teams$"]
+        :chrome   ["^com\\.google\\.Chrome$"]
+        :brave    ["^com\\.brave\\.Browser$"]
+        :obsidian ["^md\\.obsidian$"]
+        :figma    ["^com\\.figma\\.Desktop$"]
+        :zed      ["^dev\\.zed\\.Zed"]
+        }
+    :templates {
+        :alfred "osascript -e 'tell application id \"com.runningwithcrayons.Alfred\" to run trigger \"%s\" in workflow \"%s\" with argument \"%s\"'"
+        :app "osascript -e 'tell application id \"%s\" to activate'"
+        :app-old "osascript -e 'tell application id \"com.runningwithcrayons.Alfred\" to run trigger \"app: launch\" in workflow \"pw.xff.alfred.apps-launcher\" with argument \"%s\"'"
+        :km "osascript -e 'tell application \"Keyboard Maestro Engine\" to do script \"%s\"'"
+        :raycast "open -g raycast://extensions/%s"
+        :btt "open -g btt://trigger_named/?trigger_name=%s"
+        :open "open %s"
+        :sbar "/opt/homebrew/bin/sketchybar --trigger %s"
+        }
+
+    :main [
+
+        {:des "Num Layers" :rules [
+                [:9 {:set ["9L" 1] :lazy true} nil {
+                    :alone {:key :9}
+                    :afterup ["9L" 0]
+                    :params {:alone 99 :held 100 :delay 100}
+                }]
+            ]}
+
+        {:des "1L keys (F-keys)" :rules [
+            :1L
+
+            ;; F1-F12 keys
+            [:##u :f1]
+            [:##i :f2]
+            [:##o :f3]
+            [:##j :f4]
+            [:##k :f5]
+            [:##l :f6]
+            [:##m :f7]
+            [:##comma :f8]
+            [:##period :f9]
+            [:##y :f10]
+            [:##h :f11]
+            [:##n :f12]
+            ]}
+
+        {:des "9L keys (display/volume/network)" :rules [
+            :9L
+
+            [:b [:alfred "dark light toggle" "com.lisongcheng.daynight"]]
+
+            ;; [2 tap] Choose output audo device
+            [:a [ [:raycast "benvp/audio-device/set-output-device"] ["9La2T" 0] ] :9La2T ]
+            ;; [1 tap] Choose input audo device
+            [:a [ ["9La2T" 1] ] nil {
+                :delayed { :invoked  [["9La2T" 0] [:raycast "benvp/audio-device/set-input-device"]] :canceled ["9La2T" 0]}
+                :params {:delay 200 :alone 201}
+                }]
+
+            [:g [:raycast "tonka3000/gitlab/mr_my" ] ]
+            ;; ;; 2 tap
+            ;; [:g [ [ :open "https://git.fabrique.studio/" ] ["9Lg2T" 0] ] :9Lg2T ]
+            ;; ;; 1 tap
+            ;; [:g [ ["9Lg2T" 1] ] nil {
+            ;;     :delayed { :invoked  [["9Lg2T" 0] [ :raycast "tonka3000/gitlab/mr_my" ]] :canceled ["9Lg2T" 0]}
+            ;;     :params {:delay 200 :alone 201}
+            ;;     }]
+
+            ;; [:!Sg [:open "https://git.fabrique.studio/"] ]
+            ;; [:g [:raycast "tonka3000/gitlab/mr_my"] ]
+
+            ;; 2 tap
+            [:v [ [:alfred "vpn: show all" "dk.rodalgaard.alfred.network"] ["9Lv2T" 0] ] :9Lv2T ]
+            ;; 1 tap
+            [:v [ ["9Lv2T" 1] ] nil {
+                :delayed { :invoked  [["9Lv2T" 0] [:alfred "vpn: toggle fab" "dk.rodalgaard.alfred.network"]] :canceled ["9Lv2T" 0]}
+                :params {:delay 200 :alone 201}
+                }]
+
+            [:z [:raycast "ewgenius/zed-recent-projects/search" ] ]
+            ;; ;; [2 tap] Choose output audo device
+            ;; [:z [ [:raycast "ewgenius/zed-recent-projects/search"] ["9Lz2T" 0] ] :9Lz2T ]
+            ;; ;; [1 tap] Choose input audo device
+            ;; [:z [ ["9Lz2T" 1] ] nil {
+            ;;     :delayed { :invoked [["9Lz2T" 0] [:app-old "zed"]] :canceled ["9Lz2T" 0]}
+            ;;     :params {:delay 200 :alone 201}
+            ;;     }]
+
+            [:c [:raycast "thomas/visual-studio-code/index" ] ]
+            ;; ;; 2 tap
+            ;; [:c [ [:raycast "thomas/visual-studio-code/index"] ["9Lc2T" 0] ] :9Lc2T ]
+            ;; ;; 1 tap
+            ;; [:c [ ["9Lc2T" 1] ] nil {
+            ;;     :delayed { :invoked [ ["9Lc2T" 0] [:app "com.microsoft.VSCode"] ] :canceled ["9Lc2T" 0]}
+            ;;     :params {:delay 200 :alone 201}
+            ;;     }]
+
+            [:x [:raycast "gdsmith/jetbrains/recent" ] ]
+        ]}
+
+        {:des "10L keys (code)" :rules [
+            :10L
+
+            ;; 2 tap
+            [:c [ [:raycast "thomas/visual-studio-code/index"] ["10Lc2T" 0] ] :10Lc2T ]
+            ;; 1 tap
+            [:c [ ["10Lc2T" 1] ] nil {
+                ;; :alone [:app-old"vscode"]
+                :delayed { :invoked [ ["10Lc2T" 0] [:app-old"vscode"] ] :canceled ["10Lc2T" 0]}
+                :params {:delay 500 :alone 501}
+            }]
+
+            [:b [:raycast "raycast/floating-notes/toggle-floating-notes-window"]]
+            [:r [:raycast "tonka3000/gitlab/mr_my"]]
+            [:g [:open "https://git.fabrique.studio"]]
+            [:y [:open "https://youtrack.fabrique.studio"]]
+
+            ]}
+
+        {:des "12L keys (meetings)" :rules [
+            :12L
+
+            [:c [:app-old"camo"]]
+            [:d [:app-old"discord"]]
+            [:z [:app-old"zoom"]]
+            [:a [:app-old"hijack"]]
+            [:t [:app-old"teams"]]
+
+
+            ]}
+
+        {:des "Internal keyboard" :rules [
+            :mac-keys
+
+            ;; HYPER keys
+            ;; [:!Pspacebar :!!spacebar]
+            [:##caps_lock :!QWEright_shift]
+            ;; [:##caps_lock :f20]
+            ;; [:##caps_lock nil nil {
+            ;;     :alone {:key :caps_lock :halt true}
+            ;;     :held {:key :!CTOleft_shift :repeat true}
+            ;;     :params {:alone 149 :held 150 :delay 150}
+            ;;     }]
+            ]}
+
+        {:des "Utility (Enter/Tab/Caps/...)" :rules [
+            [:!Cf21 :!Cgrave_accent_and_tilde :zmk]     ;; CMD + `
+            ;; [:!Tf21 :!Tgrave_accent_and_tilde]       ;; Control + `
+            [{:sim [:f :d] :modi {                      ;; CapsLock
+                    :optional [
+                        :left_command
+                        :left_shift
+                        :left_control
+                        :left_option
+                        :caps_lock
+                        ]}}
+                ;; [:caps_lock "sketchybar --trigger kb-layout-change"]
+                ;; [:caps_lock [:sbar "kb-layout-change"]]
+                [:fn [:sbar "kb-layout-change"]]
+                nil
+                {:params {:sim 30}}
+                ]
+            [{:sim [:s :f] :modi {                      ;; Tab
+                    :optional [
+                        :left_command
+                        :left_shift
+                        :left_control
+                        :left_option
+                        :caps_lock
+                        ]}}
+                :tab
+                nil
+                {:params {:sim 50}}
+                ]
+            [{:sim [:j :i] :modi {                     ;; Enter
+                    :optional [
+                        :left_command
+                        :left_shift
+                        :left_control
+                        :left_option
+                        :caps_lock
+                        ]}}
+                :return_or_enter
+                nil
+                {:params {:sim 50}}
+                ]
+            ]}
+
+        {:des "M0 Layer" :rules [
+            [:##f20 ["M0" 1] :zmk {:afterup ["M0" 0]}]
+            [:##right_command ["M0" 1] :mac-keys {:afterup ["M0" 0]}]
+            ;; [:open_bracket nil :mac-keys {
+            ;;     :alone {:key :open_bracket :halt true}
+            ;;     :held {:set ["M0" 1] :repeat false}
+            ;;     :afterup {:set ["M0" 0]}
+            ;;     :params {:alone 149 :held 150 :delay 150}
+            ;;     }]
+
+            [:condi :M0]
+
+            ;; VSCode
+            [:r :!OCopen_bracket :vscode]     ;; fold
+            [:t :!OCclose_bracket :vscode]    ;; unfold
+            [:j :!OCleft_arrow :vscode]       ;; prev tab
+            [:k :!OCright_arrow :vscode]      ;; next tab
+
+            ;; Bear
+            [:period :!CS9 :bear]             ;; short date
+
+            ;; FireFox
+            [:j :!OCleft_arrow :ffox]         ;; prev tab
+            [:k :!OCright_arrow :ffox]        ;; next tab
+            [:e :!CSOclose_bracket :ffox]     ;; picture-in-picture
+
+            ;; Brave
+            [:j :!OCleft_arrow :brave]         ;; prev tab
+            [:k :!OCright_arrow :brave]        ;; next tab
+            [:!Sj :!TSpage_up :brave]          ;; move tab left
+            [:!Sk :!TSpage_down :brave]        ;; move tab right
+            [:p :!SCp :brave]                  ;; pin tab (custom)
+            [:h :!Copen_bracket :brave]        ;; back history
+            [:l :!Cclose_bracket :brave]       ;; next history
+
+            ;; Zoom
+            [:a :!CSa :zoom]                  ;; toggle mic
+            [:v :!CSv :zoom]                  ;; toggle video
+
+            ;; Discord
+            [:a :!CSm :discord]               ;; toggle mic
+
+            ;; MS Teams
+            [:a :!CSm :msteams]               ;; toggle mic
+
+            ;; Obsidian
+            [:j :!CSopen_bracket :obsidian]
+            [:k :!CSclose_bracket :obsidian]
+            [:h :!Oa :obsidian]
+            [:l :!Os :obsidian]
+
+            ;; Figma
+            [:j :!TStab :figma]               ;; prev tab
+            [:k :!Ttab :figma]                ;; next tab
+
+            ;; Zed
+            [:j :!OCleft_arrow :zed]         ;; prev tab
+            [:k :!OCright_arrow :zed]        ;; next tab
+            [:h [:g :b] :zed]                ;; pane: go back
+            [:l [:g :f] :zed]                ;; pane: go forward
+            [:r [:!OCo] :zed]                ;; projects: open recent
+            [:b [:!OCb] :zed]                ;; branches: open recent
+
+            ]}
+
+        {:des "M1 Layer (HYPER-keys)" :rules [
+            :zmk
+
+            ;; ~
+            [:!Sf21 :!Sgrave_accent_and_tilde :en]
+            [:!Sf21 :!Om :ru]
+            ;; `
+            [:#CTOf21 {:key :!QWEright_shift :lazy true} :en {
+                :alone {:key :grave_accent_and_tilde}
+                :params {:alone 99 :held 100 :delay 100}
+            }]
+            [:#CTOf21 {:key :!QWEright_shift :lazy true} :ru {
+                :alone {:key :!OS0}
+                :params {:alone 99 :held 100 :delay 100}
+            }]
+
+            ;; macos default keys fix
+            [:!QWERq {:key :f13}]
+            [:!QWERcomma {:key :!Tf13}]
+            [:!QWERperiod {:key :!Of13}]
+            ;; [:!QWERw {:key :!Of13}]
+
+            ;; [:#CTOf21 :!QWEright_shift :en {:alone :grave_accent_and_tilde}]
+            ;; [:#CTOf21 :!QWEright_shift :ru {:alone :!OS0}]
+
+            ]}
+
+        {:des "M2 Layer" :rules [
+            :zmk
+            [:##f22 ["M2" 1] nil {:afterup ["M2" 0]}]
+
+            [:condi :M2]
+
+            ;; ITerm2 fixes
+            ;; [:r :!Tr [:M2 :iterm2]]
+            ;; [:c :!Tc [:M2 :iterm2]]
+            ;; [:a :!Ta [:M2 :iterm2]]
+            ;; [:d :!Td [:M2 :iterm2]]
+            ;; [:!Ci :!CTup_arrow [:M2 :M4 :iterm2]]
+            ;; [:!Ck :!CTdown_arrow [:M2 :M4 :iterm2]]
+            ;; [:!Cj :!CTleft_arrow [:M2 :M4 :iterm2]]
+            ;; [:!Cl :!CTright_arrow [:M2 :M4 :iterm2]]
+
+            ;; brave fixes
+            ;; [:spacebar :!Tspacebar [:M2 :brave]]
+
+            ;; media keys
+            [:r :volume_increment]
+            [:f :volume_decrement]
+
+            ;; display
+            [:t :display_brightness_increment]
+            [:g :display_brightness_decrement :M2]
+
+            ;; screenshots
+            ;[:q :!CS4 :M2]
+
+            [:##u :1]
+            [:##i :2]
+            [:##o :3]
+            [:##j :4]
+            [:##k :5]
+            [:##l :6]
+            [:##m :7]
+            [:##comma :8]
+            [:##period :9]
+            [:##semicolon :0]
+            [:##y :keypad_asterisk]
+            [:##h :keypad_plus]
+            [:##n :keypad_hyphen]
+            [:##p :keypad_slash]
+            [:##slash :keypad_period]
+            [:##quote :keypad_equal_sign]
+
+            [:##1 :f1]
+            [:##2 :f2]
+            [:##3 :f3]
+            [:##4 :f4]
+            [:##5 :f5]
+            [:##6 :f6]
+            [:##7 :f7]
+            [:##8 :f8]
+            [:##9 :f9]
+            [:##0 :f10]
+            [:##hyphen :f11]
+            [:##equal_sign :f12]
+            ]}
+
+        {:des "Enter Layer" :rules [
+            :zmk
+            [:return_or_enter ["E1" 1] nil {:afterup ["E1" 0]}]
+
+            [:condi :E1 :ru]
+
+            [:c [:c :g :f :c :b :comma :j]]                 ;; спасибо
+            [:s [:t :o :backslash]]                         ;; ещё
+            [:g [:g :j :semicolon :f :k :e :q :c :n :f]]    ;; пожалуйста
+            [:r [:r :j :n :j :h :s :q]]                     ;; который
+
+            [:condi :E1 :en]
+
+            ;; существует задержка при переключении языков, примерно 3 символа вводятся до переключения языка
+            ;; [:q [{:select_input_source {:input_source_id "^com\\.apple\\.keylayout\\.Russian$"}} :g :h :b :d :t :n {:select_input_source {:input_source_id "^com\\.apple\\.keylayout\\.US$"}}]] ;;
+            ]}
+
+        {:des "M3 Layer" :rules [
+            ;; q w e { }       @ # : ; ^
+            ;; = s & [ ]       - " ' * ! $
+            ;; % < > ( )       _ + , . ?
+
+            :zmk
+            [:#Sf23 ["M3" 1] nil {:afterup ["M3" 0]}]
+
+            [:condi :M3]
+
+            ;; Ctrl+b
+            [:e :!Tb]
+
+            ;; ъ
+            [:#Sq :close_bracket [:ru]]
+            ;; щ
+            [:#Sw :o [:ru]]
+            ;; ё
+            [:#Ss :backslash [:ru]]
+            ;; {
+            [:r :!O9 [:ru]]
+            [:r :!Sopen_bracket [:en]]
+            ;; }
+            [:t :!O0 [:ru]]
+            [:t :!Sclose_bracket [:en]]
+            ;; @
+            [:#Oy :!O2 [:ru]]
+            [:#Oy :!S2 [:en]]
+            ;; #
+            [:u :!O3 [:ru]]
+            [:u :!S3 [:en]]
+            ;; :
+            [:i :!S5 [:ru]]
+            [:i :!Ssemicolon [:en]]
+            ;; ;
+            [:o :!S8 [:ru]]
+            [:o :semicolon [:en]]
+            ;; ^
+            [:p :!O6 [:ru]]
+            [:p :!S6 [:en]]
+            ;; =
+            [:a :equal_sign [:ru]]
+            [:a :equal_sign [:en]]
+            ;; &
+            [:d :!O7 [:ru]]
+            [:d :!S7 [:en]]
+            ;; [
+            [:f :!Sgrave_accent_and_tilde [:ru]]
+            [:f :open_bracket [:en]]
+            ;; ]
+            [:g :grave_accent_and_tilde [:ru]]
+            [:g :close_bracket [:en]]
+            ;; -
+            [:h :hyphen [:ru]]
+            [:h :hyphen [:en]]
+            ;; "
+            [:j :!S2 [:ru]]
+            [:j :!Squote [:en]]
+            ;; '
+            [:k :!SO9 [:ru]]
+            [:k :quote [:en]]
+            ;; *
+            [:l :!O8 [:ru]]
+            [:l :!S8 [:en]]
+            ;; !
+            [:semicolon :!S1 [:ru]]
+            [:semicolon :!S1 [:en]]
+            ;; $
+            [:quote :!O4 [:ru]]
+            [:quote :!S4 [:en]]
+            ;; %
+            [:z :!S4 [:ru]]
+            [:z :!S5 [:en]]
+            ;; <
+            [:x :!Snon_us_backslash [:ru]]
+            [:x :!Scomma [:en]]
+            ;; >
+            [:c :non_us_backslash [:ru]]
+            [:c :!Speriod [:en]]
+            ;; (
+            [:v :!S9 [:ru]]
+            [:v :!S9 [:en]]
+            ;; )
+            [:b :!S0 [:ru]]
+            [:b :!S0 [:en]]
+            ;; _
+            [:n :!Shyphen [:ru]]
+            [:n :!Shyphen [:en]]
+            ;; +
+            [:m :!Sequal_sign [:ru]]
+            [:m :!Sequal_sign [:en]]
+            ;; ,
+            [:comma :!S6 [:ru]]
+            [:comma :comma [:en]]
+            ;; .
+            [:period :!S7 [:ru]]
+            [:period :period [:en]]
+            ;; ?
+            [:slash :!Sslash [:ru]]
+            [:slash :!Sslash [:en]]
+            ]}
+
+        {:des "M4 Layer" :rules [
+            [:##f24 ["M4" 1] :zmk {:afterup ["M4" 0]}]
+            [:##non_us_backslash ["M4" 1] :mac-keys {:afterup ["M4" 0]}]
+
+            ;; permanent layer on mac-keys
+            [{:sim [:d :w] :modi {
+                    :optional [
+                        :caps_lock
+                        ]}}
+                [{:set ["M4" 0] :repeat false} {:noti {:id :mynoty :text ""}}]
+                [:mac-keys :M4]
+                {:params {:sim 50}}
+                ]
+            [{:sim [:d :w] :modi {
+                    :optional [
+                        :caps_lock
+                        ]}}
+                [{:set ["M4" 1] :repeat false} {:noti {:id :mynoty :text "M4 Layer"}}]
+                [:mac-keys :!M4]
+                {:params {:sim 50}}
+                ]
+
+            [:condi :M4]
+            ;; arrows and page up/down
+            [:##i :up_arrow]
+            [:##k :down_arrow]
+            [:##j :left_arrow]
+            [:##l :right_arrow]
+            [:##h :home]
+            [:##semicolon :end]
+            [:##u :page_up]
+            [:##m :page_down]
+
+            [:##delete_or_backspace :delete_forward :!mac-keys]
+
+            ;; mouse
+            [:e {:mkey {:y -1000}}]    ;; up
+            [:d {:mkey {:y 1000}}]     ;; down
+            [:s {:mkey {:x -1000}}]    ;; left
+            [:f {:mkey {:x 1000}}]     ;; right
+
+            [:#CSy {:pkey :button1}]   ;; button 1
+            [:#CSn {:pkey :button2}]   ;; button 2
+
+            ;; ⇧ (slow)
+            [:!Se {:mkey {:y -450}}]   ;; up (slow)
+            [:!Sd {:mkey {:y 450}}]    ;; down (slow)
+            [:!Ss {:mkey {:x -450}}]   ;; left (slow)
+            [:!Sf {:mkey {:x 450}}]    ;; right (slow)
+
+            ;; ⌘ (fast)
+            [:!Ce {:mkey {:y -3072}}]  ;; up (fast)
+            [:!Cd {:mkey {:y 3072}}]   ;; down (fast)
+            [:!Cs {:mkey {:x -3072}}]  ;; left (fast)
+            [:!Cf {:mkey {:x 3072}}]   ;; right (fast)
+
+            ;; ⌃ (mouse wheel)
+            [:!Te {:mkey {:vwheel -32}}]  ;; scroll up
+            [:!Td {:mkey {:vwheel 32}}]   ;; scroll down
+            [:!Ts {:mkey {:hwheel 32}}]   ;; scroll left
+            [:!Tf {:mkey {:hwheel -32}}]  ;; scroll right
+            ]}
+
+        {:des "RU layout remap" :rules [
+            [:condi :zmk :ru]
+            [:#So :p]                    ;; з one key to the left
+            [:#Sp :open_bracket]         ;; х one key to the left
+            [:!Om :close_bracket]        ;; option ь == ъ
+            [[:w :s] [:t :o :backslash]] ;; "ещё"
+            ]}
+
+        {:des "Apps simple keys" :rules [
+            [:!Cj :!Creturn_or_enter :telegram]     ;; send message
+            ]}
+
+        ]
+}
+
+;; Keys list:
+;; https://github.com/yqrashawn/GokuRakuJoudo/blob/master/src/karabiner_configurator/keys_info.clj
+
+;; Examples:
+;; https://github.com/nikitavoloboev/config/blob/master/karabiner/karabiner.edn
+;; https://github.com/fabiomcosta/dotfiles/blob/main/home/.config/karabiner.edn
+;; https://github.com/tIsGoud/goku/blob/master/karabiner.edn
+;; https://gist.github.com/narze/1eb7d0f14b6177ea0360f5dc214867b0
+;; https://github.com/jasonrudolph/keyboard
+;; https://github.com/gabriel-gardner/modtap-karabiner
+
+;; !  | means mandatory
+;; #  | means optional
+;; C  | left_command
+;; T  | left_control
+;; O  | left_option
+;; S  | left_shift
+;; F  | fn
+;; Q  | right_command
+;; W  | right_control
+;; E  | right_option
+;; R  | right_shift
+;; P  | caps_lock
+;; !! | mandatory command + control + optional + shift (hyper)
+;; ## | optional any
