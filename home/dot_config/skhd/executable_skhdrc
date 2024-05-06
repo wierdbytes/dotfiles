@@ -17,8 +17,8 @@ lcmd + rcmd + rctrl + ralt + rshift - i : $HOME/.config/skhd/yabai-stack north ;
 lcmd + rcmd + rctrl + ralt + rshift - k : $HOME/.config/skhd/yabai-stack south ; sketchybar --trigger window_focus
 
 # maximize a window
-lshift + rcmd + rctrl + ralt + rshift - f : yabai -m window --toggle zoom-fullscreen; sketchybar --trigger window_focus
-lalt + rcmd + rctrl + ralt + rshift - f : yabai -m window --toggle float; sketchybar --trigger window_focus
+lalt + rcmd + rctrl + ralt + rshift - f : yabai -m window --toggle zoom-fullscreen; sketchybar --trigger window_focus
+lshift + rcmd + rctrl + ralt + rshift - f : yabai -m window --toggle float; sketchybar --trigger window_focus
 
 # balance out tree of windows (resize to occupy same area)
 shift + alt - e : yabai -m space --balance
