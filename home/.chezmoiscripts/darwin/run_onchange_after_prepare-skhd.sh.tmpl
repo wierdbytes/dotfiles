@@ -1,9 +1,0 @@
-#!/bin/bash
-
-# hash of skhd: {{ output "shasum" "-a" "256" "/opt/homebrew/bin/skhd" }}
-
-echo "[skhd] Reloading skhd configuration..."
-
-skhd --stop-service 2> /dev/null ; skhd --start-service
-
-echo "[skhd] Done!"

@@ -48,6 +48,7 @@
         :btt "open -g btt://trigger_named/?trigger_name=%s"
         :open "open %s"
         :sbar "/opt/homebrew/bin/sketchybar --trigger %s"
+        :yabai-move-to-space "/opt/homebrew/bin/yabai -m window --space %s && /opt/homebrew/bin/sketchybar --trigger windows_on_spaces"
         }
 
     :main [
@@ -307,9 +308,61 @@
             [:!QWERperiod {:key :!Of13}]
             ;; [:!QWERw {:key :!Of13}]
 
+            [:!SQWER1 [:yabai-move-to-space "1"]]
+            [:!SQWER2 [:yabai-move-to-space "2"]]
+            [:!SQWER3 [:yabai-move-to-space "3"]]
+            [:!SQWER4 [:yabai-move-to-space "4"]]
+            [:!SQWER5 [:yabai-move-to-space "5"]]
+            [:!SQWER6 [:yabai-move-to-space "6"]]
+            [:!SQWER7 [:yabai-move-to-space "7"]]
+            [:!SQWER8 [:yabai-move-to-space "8"]]
+            [:!SQWER9 [:yabai-move-to-space "9"]]
+
             ;; [:#CTOf21 :!QWEright_shift :en {:alone :grave_accent_and_tilde}]
             ;; [:#CTOf21 :!QWEright_shift :ru {:alone :!OS0}]
 
+            ]}
+
+        ;; yabai and window management
+        {:des "M9 Layer" :rules [
+            :zmk
+            [:##f19 ["M9" 1] nil {:afterup ["M9" 0]}]
+
+            [:condi :M9]
+
+            ;; yabai toggle gaps
+            [:g "/opt/homebrew/bin/yabai -m space --toggle padding && /opt/homebrew/bin/yabai -m space --toggle gap"]
+            ;; toggle icons of stackline
+            [:r "/opt/homebrew/bin/hs -c \"stackline.config:toggle('appearance.showIcons')\""]
+            ;; toggle stack / bsp mode
+            [:b "/opt/homebrew/bin/yabai -m space --layout $(/opt/homebrew/bin/yabai -m query --spaces --space | /opt/homebrew/bin/jq -r 'if .type == \"bsp\" then \"stack\" else \"bsp\" end')"]
+            ;; toggle horizontal / vertical split
+            [:t "/opt/homebrew/bin/yabai -m window --toggle split"]
+            ;; move focus next / prev / left / right window
+            [:d "/opt/homebrew/bin/yabai -m window --focus stack.next || /opt/homebrew/bin/yabai -m window --focus south || /opt/homebrew/bin/yabai -m window --focus stack.first ; /opt/homebrew/bin/sketchybar --trigger window_focus"]
+            [:e "/opt/homebrew/bin/yabai -m window --focus stack.prev || /opt/homebrew/bin/yabai -m window --focus north || /opt/homebrew/bin/yabai -m window --focus stack.last ; /opt/homebrew/bin/sketchybar --trigger window_focus"]
+            [:s "/opt/homebrew/bin/yabai -m window --focus west ; /opt/homebrew/bin/sketchybar --trigger window_focus"]
+            [:f "/opt/homebrew/bin/yabai -m window --focus east ; /opt/homebrew/bin/sketchybar --trigger window_focus"]
+            ;; swap window next / prev / left / right
+            [:!Sd "/opt/homebrew/bin/yabai -m window --warp south ; /opt/homebrew/bin/sketchybar --trigger window_focus"]
+            [:!Se "/opt/homebrew/bin/yabai -m window --warp north ; /opt/homebrew/bin/sketchybar --trigger window_focus"]
+            [:!Ss "/opt/homebrew/bin/yabai -m window --warp west ; /opt/homebrew/bin/sketchybar --trigger window_focus"]
+            [:!Sf "/opt/homebrew/bin/yabai -m window --warp east ; /opt/homebrew/bin/sketchybar --trigger window_focus"]
+            ;; move window next / prev / left / right with stacking
+            [:!Cd "$HOME/.config/yabai-stack south ; sketchybar --trigger window_focus"]
+            [:!Ce "$HOME/.config/yabai-stack north ; sketchybar --trigger window_focus"]
+            [:!Cs "$HOME/.config/yabai-stack west ; sketchybar --trigger window_focus"]
+            [:!Cf "$HOME/.config/yabai-stack east ; sketchybar --trigger window_focus"]
+            ;; balance out tree of windows (resize to occupy same area)
+            [:z "/opt/homebrew/bin/yabai -m space --balance"]
+
+            ;; toggle float / tile window
+            [:q "/opt/homebrew/bin/yabai -m window --toggle float"]
+            ;; toggle fullscreen
+            [:w "/opt/homebrew/bin/yabai -m window --toggle zoom-fullscreen"]
+            ;; reload/restart wm services
+            [:y "/opt/homebrew/bin/yabai --restart-service"]
+            [:u "/opt/homebrew/bin/sketchybar --reload"]
             ]}
 
         {:des "M2 Layer" :rules [
@@ -337,7 +390,7 @@
 
             ;; display
             [:t :display_brightness_increment]
-            [:g :display_brightness_decrement :M2]
+            [:g :display_brightness_decrement]
 
             ;; screenshots
             ;[:q :!CS4 :M2]
