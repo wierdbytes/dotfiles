@@ -84,7 +84,6 @@
       "g r": "editor::FindAllReferences",
       "g b": "pane::GoBack",
       "g f": "pane::GoForward",
-      "g l": "go_to_line::Toggle",
       "g o": "project_symbols::Toggle",
       "t h": "editor::ToggleInlayHints"
       // "[ d": "editor::GoToPrevDiagnostic",
