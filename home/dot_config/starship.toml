@@ -5,6 +5,7 @@ format = """
 [ ](bg:color_group1)\
 $os\
 $username\
+$hostname\
 [](fg:color_group1)\
 [](fg:color_group2)\
 $directory\
@@ -57,7 +58,7 @@ style = "bg:color_group1 fg:color_fg0"
 
 [os.symbols]
 Windows = "󰍲 "
-Ubuntu = "󰕈 "
+Ubuntu = " "
 SUSE = " "
 Raspbian = "󰐿 "
 Mint = "󰣭 "
@@ -80,7 +81,12 @@ RedHatEnterprise = "󱄛 "
 show_always = false
 style_user = "bg:color_group1 fg:color_fg0"
 style_root = "bg:color_group1 fg:color_fg0"
-format = '[$user ]($style)'
+format = '[$user]($style)'
+
+[hostname]
+ssh_only = true
+style = "bg:color_group1 fg:color_fg0"
+format = '[@$hostname ]($style)'
 
 [directory]
 style = "fg:color_fg0 bg:color_group2"
