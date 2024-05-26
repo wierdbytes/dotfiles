@@ -2,7 +2,7 @@
 TERM = "xterm-256color"
 
 [window]
-padding.x = 10
+# padding.x = 10
 # padding.y = 10
 
 decorations = "Buttonless"
@@ -19,6 +19,7 @@ dimensions.columns = 500
 [font]
 normal.family = "MesloLGS Nerd Font Mono"
 # normal.family = "JetBrainsMono Nerd Font"
+# normal.family = "JetBrainsMonoNL Nerd Font Propo"
 
 size = 14
 

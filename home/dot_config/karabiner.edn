@@ -25,19 +25,20 @@
                 :language "en"}
         }
     :applications {
-        :iterm2   ["^com\\.googlecode\\.iterm2$"]
-        :vscode   ["^com\\.microsoft\\.VSCode$"]
-        :bear     ["^net\\.shinyfrog\\.bear$"]
-        :ffox     ["^org\\.mozilla\\.firefox$"]
-        :zoom     ["^us\\.zoom\\.xos$"]
-        :discord  ["^com\\.hnc\\.Discord$"]
-        :telegram ["^ru\\.keepcoder\\.Telegram$"]
-        :msteams  ["^com\\.microsoft\\.teams$"]
-        :chrome   ["^com\\.google\\.Chrome$"]
-        :brave    ["^com\\.brave\\.Browser$"]
-        :obsidian ["^md\\.obsidian$"]
-        :figma    ["^com\\.figma\\.Desktop$"]
-        :zed      ["^dev\\.zed\\.Zed"]
+        :iterm2    ["^com\\.googlecode\\.iterm2$"]
+        :vscode    ["^com\\.microsoft\\.VSCode$"]
+        :bear      ["^net\\.shinyfrog\\.bear$"]
+        :ffox      ["^org\\.mozilla\\.firefox$"]
+        :zoom      ["^us\\.zoom\\.xos$"]
+        :discord   ["^com\\.hnc\\.Discord$"]
+        :telegram  ["^ru\\.keepcoder\\.Telegram$"]
+        :msteams   ["^com\\.microsoft\\.teams$"]
+        :chrome    ["^com\\.google\\.Chrome$"]
+        :brave     ["^com\\.brave\\.Browser$"]
+        :obsidian  ["^md\\.obsidian$"]
+        :figma     ["^com\\.figma\\.Desktop$"]
+        :zed       ["^dev\\.zed\\.Zed"]
+        :alacritty ["^org\\.alacritty$"]
         }
     :templates {
         :alfred "osascript -e 'tell application id \"com.runningwithcrayons.Alfred\" to run trigger \"%s\" in workflow \"%s\" with argument \"%s\"'"
@@ -283,6 +284,9 @@
             [:l [:g :f] :zed]                ;; pane: go forward
             [:r [:!OCo] :zed]                ;; projects: open recent
             [:b [:!OCb] :zed]                ;; branches: open recent
+            
+            ;; Alacritty
+            [:u "$HOME/.config/alacritty_opacity.sh" :alacritty]
 
             ]}
 
