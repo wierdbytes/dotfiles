@@ -312,20 +312,24 @@
             [:!QWERperiod {:key :!Of13}]
             ;; [:!QWERw {:key :!Of13}]
 
-            [:!SQWER1 [:yabai-move-to-space "1"]]
-            [:!SQWER2 [:yabai-move-to-space "2"]]
-            [:!SQWER3 [:yabai-move-to-space "3"]]
-            [:!SQWER4 [:yabai-move-to-space "4"]]
-            [:!SQWER5 [:yabai-move-to-space "5"]]
-            [:!SQWER6 [:yabai-move-to-space "6"]]
-            [:!SQWER7 [:yabai-move-to-space "7"]]
-            [:!SQWER8 [:yabai-move-to-space "8"]]
-            [:!SQWER9 [:yabai-move-to-space "9"]]
 
             ;; [:#CTOf21 :!QWEright_shift :en {:alone :grave_accent_and_tilde}]
             ;; [:#CTOf21 :!QWEright_shift :ru {:alone :!OS0}]
 
             ]}
+        
+        {:des "Yabai driver" :rules [
+          [:!SQWER1 [:yabai-move-to-space "1"]]
+          [:!SQWER2 [:yabai-move-to-space "2"]]
+          [:!SQWER3 [:yabai-move-to-space "3"]]
+          [:!SQWER4 [:yabai-move-to-space "4"]]
+          [:!SQWER5 [:yabai-move-to-space "5"]]
+          [:!SQWER6 [:yabai-move-to-space "6"]]
+          [:!SQWER7 [:yabai-move-to-space "7"]]
+          [:!SQWER8 [:yabai-move-to-space "8"]]
+          [:!SQWER9 [:yabai-move-to-space "9"]]
+          
+          ]}
 
         ;; yabai and window management
         {:des "M9 Layer" :rules [
