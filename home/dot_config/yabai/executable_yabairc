@@ -64,6 +64,7 @@ yabai -m rule --add app="^Enpass$" manage=off
 yabai -m rule --add app="^Stickies$" manage=off
 yabai -m rule --add app="^Finder$" title="Copy" manage=off
 yabai -m rule --add app="^Todoist$" title="Todoist" manage=off
+yabai -m rule --add app="^ChatGPT$" manage=off
 
 # From https://github.com/FelixKratz/dotfiles/blob/1589c769e28f110b1177f6a83fa145235c8f7bd6/.config/yabai/yabairc
 yabai -m rule --add app="^(LuLu|Calculator|Software Update|Dictionary|VLC|System Preferences|System Settings|zoom.us|Photo Booth|Archive Utility|Python|LibreOffice|App Store|Steam|Alfred|Activity Monitor|Alacritty)$" manage=off
