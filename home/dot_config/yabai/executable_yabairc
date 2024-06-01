@@ -47,12 +47,12 @@ yabai -m config \
   focus_follows_mouse        off            \
   window_zoom_persist        off            \
   window_placement           second_child   \
-  window_shadow              float          \
+  window_shadow              off            \
   window_opacity             off            \
   window_opacity_duration    0.0            \
   active_window_opacity      1.0            \
   normal_window_opacity      1.0            \
-  window_animation_duration  0.3            \
+  window_animation_duration  0.2            \
   window_animation_easing    ease_out_quint \
   insert_feedback_color      0xff9dd274     \
 
@@ -60,10 +60,9 @@ yabai -m rule --add app="^System Settings$" manage=off
 yabai -m rule --add app="^Calculator$" manage=off
 yabai -m rule --add app="^Raycast$" manage=off
 yabai -m rule --add app="^Karabiner-Elements$" manage=off
-yabai -m rule --add app="^Enpass$" manage=off
+yabai -m rule --add app="^Enpass$" sticky=on
 yabai -m rule --add app="^CleanShot X$" manage=off
-yabai -m rule --add app="^Digital Colour Meter$" manage=off
-yabai -m rule --add app="^Enpass$" manage=off
+yabai -m rule --add app="^Digital Colou?r Meter$" sticky=on
 yabai -m rule --add app="^Stickies$" manage=off
 yabai -m rule --add app="^Finder$" title="Copy" manage=off
 yabai -m rule --add app="^Todoist$" title="Todoist" manage=off
@@ -77,4 +76,4 @@ yabai -m rule --add label="About This Mac" app="System Information" title="About
 yabai -m rule --add label="Select file to save to" app="^Inkscape$" title="Select file to save to" manage=off
 
 yabai -m config external_bar all:24:0
-borders active_color=0xff605faa inactive_color=0xff3d3836 style=round blacklist="alacritty" hidpi=on width=4.0 &
+borders active_color=0xff699d6a inactive_color=0x003d3836 style=round blacklist="alacritty" hidpi=on width=5.0 &

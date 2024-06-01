@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # hash of yabai: {{ output "shasum" "-a" "256" "/opt/homebrew/bin/yabai" }}
+# hash of yabairc: {{ output "shasum" "-a" "256" (print .chezmoi.homeDir "/.config/yabai/yabairc") }}
 
 brew services restart borders
 
