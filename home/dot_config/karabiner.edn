@@ -362,23 +362,24 @@
             [:!Cs "$HOME/.config/yabai-stack west ; sketchybar --trigger window_focus"]
             [:!Cf "$HOME/.config/yabai-stack east ; sketchybar --trigger window_focus"]
             ;; resize window
-            [:!Od "/opt/homebrew/bin/yabai -m window --resize bottom:0:30"]
-            [:!Oe "/opt/homebrew/bin/yabai -m window --resize bottom:0:-30"]
-            [:!Os "/opt/homebrew/bin/yabai -m window --resize right:-30:0"]
-            [:!Of "/opt/homebrew/bin/yabai -m window --resize right:30:0"]
-            [:!Td "/opt/homebrew/bin/yabai -m window --move rel:0:30"]
-            [:!Te "/opt/homebrew/bin/yabai -m window --move rel:0:-30"]
-            [:!Ts "/opt/homebrew/bin/yabai -m window --move rel:-30:0"]
-            [:!Tf "/opt/homebrew/bin/yabai -m window --move rel:30:0"]
+            [:!Od "/opt/homebrew/bin/yabai -m window --resize bottom:0:19"]
+            [:!Oe "/opt/homebrew/bin/yabai -m window --resize bottom:0:-19"]
+            [:!Os "/opt/homebrew/bin/yabai -m window --resize right:-32:0"]
+            [:!Of "/opt/homebrew/bin/yabai -m window --resize right:32:0"]
+            
+            [:!Td "/opt/homebrew/bin/yabai -m window --move rel:0:19"]
+            [:!Te "/opt/homebrew/bin/yabai -m window --move rel:0:-19"]
+            [:!Ts "/opt/homebrew/bin/yabai -m window --move rel:-32:0"]
+            [:!Tf "/opt/homebrew/bin/yabai -m window --move rel:32:0"]
             ;; balance out tree of windows (resize to occupy same area)
-            [:z "/opt/homebrew/bin/yabai -m space --balance"]
+            [:x "/opt/homebrew/bin/yabai -m space --balance"]
 
             ;; toggle float / tile window
             [:q "/opt/homebrew/bin/yabai -m window --toggle float"]
             ;; toggle fullscreen
             [:w "/opt/homebrew/bin/yabai -m window --toggle zoom-fullscreen"]
             [:a "/opt/homebrew/bin/yabai -m window --toggle shadow"]
-            [:x "/opt/homebrew/bin/yabai -m window --toggle sticky"]
+            [:z "/opt/homebrew/bin/yabai -m window --toggle sticky"]
             ;; reload/restart wm services
             [:y "/opt/homebrew/bin/yabai --restart-service"]
             [:u "/opt/homebrew/bin/sketchybar --reload"]
