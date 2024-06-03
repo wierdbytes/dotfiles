@@ -94,6 +94,7 @@
                 }]
 
             [:g [:raycast "tonka3000/gitlab/mr_my" ] ]
+            [:f [:raycast "tiulpin/youtrack/browse" ] ]
             ;; ;; 2 tap
             ;; [:g [ [ :open "https://git.fabrique.studio/" ] ["9Lg2T" 0] ] :9Lg2T ]
             ;; ;; 1 tap
