@@ -17,7 +17,8 @@ dimensions.columns = 500
 
 
 [font]
-normal.family = "MesloLGS Nerd Font Mono"
+normal.family = "MesloLGL Nerd Font"
+# normal.family = "MesloLGS Nerd Font Mono"
 # normal.family = "JetBrainsMono Nerd Font"
 # normal.family = "JetBrainsMonoNL Nerd Font Propo"
 
