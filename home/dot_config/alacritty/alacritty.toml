@@ -1,3 +1,11 @@
+import = [
+  # uncomment the flavour you want below:
+  # "~/.config/alacritty/catppuccin-latte.toml"
+  # "~/.config/alacritty/catppuccin-frappe.toml"
+  "~/.config/alacritty/catppuccin-macchiato.toml",
+  # "~/.config/alacritty/catppuccin-mocha.toml"
+]
+
 [env]
 TERM = "xterm-256color"
 
@@ -14,7 +22,6 @@ option_as_alt = "Both"
 position.y = 50
 dimensions.lines = 42
 dimensions.columns = 500
-
 
 [font]
 normal.family = "MesloLGL Nerd Font"
