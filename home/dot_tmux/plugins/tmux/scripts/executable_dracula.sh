@@ -19,7 +19,7 @@ main()
   show_powerline=$(get_tmux_option "@dracula-show-powerline" false)
   show_flags=$(get_tmux_option "@dracula-show-flags" false)
   show_left_icon=$(get_tmux_option "@dracula-show-left-icon" smiley)
-  show_left_icon_padding=$(get_tmux_option "@dracula-left-icon-padding" 1)
+  show_left_icon_padding=$(get_tmux_option "@dracula-left-icon-padding" 0)
   show_military=$(get_tmux_option "@dracula-military-time" false)
   timezone=$(get_tmux_option "@dracula-set-timezone" "")
   show_timezone=$(get_tmux_option "@dracula-show-timezone" true)
@@ -135,7 +135,8 @@ main()
   tmux set-option -g message-style "bg=${gray},fg=${white}"
 
   # status bar
-  tmux set-option -g status-style "bg=${gray},fg=${white}"
+  # tmux set-option -g status-style "bg=${gray},fg=${white}"
+  tmux set-option -g status-style "default"
 
   # Status left
   if $show_powerline; then
@@ -308,9 +309,10 @@ main()
     tmux set-window-option -g window-status-current-format "#[fg=${black},bg=${dark_purple}] #I #W${current_flags} "
   fi
 
-  tmux set-window-option -g window-status-format "#[fg=${gray},bg=${gray}]${left_sep}#[fg=${white}]#[bg=${gray}] #I #W${flags}#[fg=${gray}]${left_sep}"
+  tmux set-window-option -g window-status-format "#[fg=${gray},bg=${gray}]${left_sep}#[fg=${white}]#[bg=${gray}] #I #W${flags}#[fg=${gray},bg=${gray}]${left_sep}"
   tmux set-window-option -g window-status-activity-style "bold"
   tmux set-window-option -g window-status-bell-style "bold"
+  tmux set-window-option -g window-status-separator ""
 }
 
 # run main function
