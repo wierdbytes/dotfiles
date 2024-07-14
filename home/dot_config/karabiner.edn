@@ -40,6 +40,7 @@
         :zed       ["^dev\\.zed\\.Zed"]
         :alacritty ["^org\\.alacritty$"]
         :arc       ["^company\\.thebrowser\\.Browser$"]
+        :intellij  ["^com\\.jetbrains\\.intellij$"]
         }
     :templates {
         :alfred "osascript -e 'tell application id \"com.runningwithcrayons.Alfred\" to run trigger \"%s\" in workflow \"%s\" with argument \"%s\"'"
@@ -294,6 +295,12 @@
             [:l :!Os :obsidian]               ;; next history
             [:!Oj :!OSo :obsidian]            ;; switch to left split
             [:!Ok :!OSp :obsidian]            ;; switch to right split
+            
+            ;; Obsidian
+            [:h :!Copen_bracket :intellij]    ;; back history
+            [:l :!Cclose_bracket :intellij]   ;; next history
+            [:j :!CSopen_bracket :intellij]   ;; prev tab
+            [:k :!CSclose_bracket :intellij]  ;; next tab
 
             ;; Figma
             [:j :!TStab :figma]               ;; prev tab
