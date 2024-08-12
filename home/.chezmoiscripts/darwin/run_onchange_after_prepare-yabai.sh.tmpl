@@ -3,9 +3,11 @@
 # hash of yabai: {{ output "shasum" "-a" "256" "/opt/homebrew/bin/yabai" }}
 # hash of yabairc: {{ output "shasum" "-a" "256" (print .chezmoi.homeDir "/.config/yabai/yabairc") }}
 
-echo "[yabai] Reloading yabai configuration..."
+echo "[yabai] Temporarily disabled"
 
-echo "$(whoami) ALL=(root) NOPASSWD: sha256:$(shasum -a 256 $(which yabai) | cut -d " " -f 1) $(which yabai) --load-sa" | sudo tee /private/etc/sudoers.d/yabai
-yabai --stop-service 2> /dev/null ; yabai --start-service
+# echo "[yabai] Reloading yabai configuration..."
 
-echo "[yabai] Done!"
+# echo "$(whoami) ALL=(root) NOPASSWD: sha256:$(shasum -a 256 $(which yabai) | cut -d " " -f 1) $(which yabai) --load-sa" | sudo tee /private/etc/sudoers.d/yabai
+# yabai --stop-service 2> /dev/null ; yabai --start-service
+
+# echo "[yabai] Done!"

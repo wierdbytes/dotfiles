@@ -52,6 +52,7 @@
         :open "open %s"
         :sbar "/opt/homebrew/bin/sketchybar --trigger %s"
         :yabai-move-to-space "/opt/homebrew/bin/yabai -m window --space %s && /opt/homebrew/bin/sketchybar --trigger windows_on_spaces"
+        :aerospace "/opt/homebrew/bin/aerospace %s"
         }
 
     :main [
@@ -242,6 +243,9 @@
             [:t :!OCclose_bracket :vscode]    ;; unfold
             [:j :!OCleft_arrow :vscode]       ;; prev tab
             [:k :!OCright_arrow :vscode]      ;; next tab
+            [:h :!Thyphen :vscode]            ;; go back
+            [:l :!TShyphen :vscode]           ;; go forward
+
 
             ;; Bear
             [:period :!CS9 :bear]             ;; short date
@@ -347,17 +351,50 @@
 
             ]}
         
-        {:des "Yabai driver" :rules [
-          [:!SQWER1 [:yabai-move-to-space "1"]]
-          [:!SQWER2 [:yabai-move-to-space "2"]]
-          [:!SQWER3 [:yabai-move-to-space "3"]]
-          [:!SQWER4 [:yabai-move-to-space "4"]]
-          [:!SQWER5 [:yabai-move-to-space "5"]]
-          [:!SQWER6 [:yabai-move-to-space "6"]]
-          [:!SQWER7 [:yabai-move-to-space "7"]]
-          [:!SQWER8 [:yabai-move-to-space "8"]]
-          [:!SQWER9 [:yabai-move-to-space "9"]]
+        ;; {:des "Yabai driver" :rules [
+        ;;   [:!SQWER1 [:yabai-move-to-space "1"]]
+        ;;   [:!SQWER2 [:yabai-move-to-space "2"]]
+        ;;   [:!SQWER3 [:yabai-move-to-space "3"]]
+        ;;   [:!SQWER4 [:yabai-move-to-space "4"]]
+        ;;   [:!SQWER5 [:yabai-move-to-space "5"]]
+        ;;   [:!SQWER6 [:yabai-move-to-space "6"]]
+        ;;   [:!SQWER7 [:yabai-move-to-space "7"]]
+        ;;   [:!SQWER8 [:yabai-move-to-space "8"]]
+        ;;   [:!SQWER9 [:yabai-move-to-space "9"]]
           
+        ;;   ]}
+
+        {:des "Aerospace driver" :rules [
+          [:!QWERescape [:aerospace "mode service"]]
+          
+          [:!QWER1 [:aerospace "workspace 1"]]
+          [:!QWER2 [:aerospace "workspace 2"]]
+          [:!QWER3 [:aerospace "workspace 3"]]
+          [:!QWER4 [:aerospace "workspace 4"]]
+          [:!QWER5 [:aerospace "workspace 5"]]
+          [:!QWER6 [:aerospace "workspace 6"]]
+          [:!QWER7 [:aerospace "workspace 7"]]
+          [:!QWER8 [:aerospace "workspace 8"]]
+          [:!QWER9 [:aerospace "workspace 9"]]
+
+          [:!SQWER1 [:aerospace "move-node-to-workspace 1"]]
+          [:!SQWER2 [:aerospace "move-node-to-workspace 2"]]
+          [:!SQWER3 [:aerospace "move-node-to-workspace 3"]]
+          [:!SQWER4 [:aerospace "move-node-to-workspace 4"]]
+          [:!SQWER5 [:aerospace "move-node-to-workspace 5"]]
+          [:!SQWER6 [:aerospace "move-node-to-workspace 6"]]
+          [:!SQWER7 [:aerospace "move-node-to-workspace 7"]]
+          [:!SQWER8 [:aerospace "move-node-to-workspace 8"]]
+          [:!SQWER9 [:aerospace "move-node-to-workspace 9"]]
+          
+          [:!SQWERh [:aerospace "focus left"]]
+          [:!SQWERj [:aerospace "focus down"]]
+          [:!SQWERk [:aerospace "focus up"]]
+          [:!SQWERl [:aerospace "focus right"]]
+
+          [:!SQWERslash [:aerospace "layout tiles horizontal vertical"]]
+          [:!SQWERcomma [:aerospace "layout accordion horizontal vertical"]]
+
           ]}
 
         ;; yabai and window management
@@ -444,16 +481,16 @@
             ;; screenshots
             ;[:q :!CS4 :M2]
 
-            [:##u :1]
-            [:##i :2]
-            [:##o :3]
-            [:##j :4]
-            [:##k :5]
-            [:##l :6]
-            [:##m :7]
-            [:##comma :8]
-            [:##period :9]
-            [:##semicolon :0]
+            [:##u :keypad_1]
+            [:##i :keypad_2]
+            [:##o :keypad_3]
+            [:##j :keypad_4]
+            [:##k :keypad_5]
+            [:##l :keypad_6]
+            [:##m :keypad_7]
+            [:##comma :keypad_8]
+            [:##period :keypad_9]
+            [:##semicolon :keypad_0]
             [:##y :keypad_asterisk]
             [:##h :keypad_plus]
             [:##n :keypad_hyphen]
