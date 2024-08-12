@@ -69,7 +69,7 @@ for i = 1, 9, 1 do
       padding_left = 8,
       padding_right = 4,
       color = colors.grey,
-      highlight_color = colors.white,
+      highlight_color = colors.accent,
     },
     label = {
       padding_right = 12,
@@ -131,14 +131,14 @@ for i = 1, 9, 1 do
     -- update_windows()
     -- print("workspace changed", env.FOCUSED_WORKSPACE)
     local selected = env.FOCUSED_WORKSPACE == space.name
-    local color = selected and colors.grey or colors.bg2
+    -- local color = selected and colors.accent or colors.bg2
     space:set({
       icon = { highlight = selected, },
       label = { highlight = selected },
       background = { border_color = selected and colors.black or colors.bg2 }
     })
     space_bracket:set({
-      background = { border_color = selected and colors.grey or colors.bg2 }
+      background = { border_color = selected and colors.accent or colors.bg2 }
     })
   end)
 end
