@@ -141,6 +141,12 @@ for i = 1, 9, 1 do
       background = { border_color = selected and colors.accent or colors.bg2 }
     })
   end)
+
+  space:subscribe("mouse.clicked", function(env)
+    sbar.exec("aerospace workspace " .. env.SID, function(result, exit_code)
+    end)
+  end)
+
 end
 
 local space_window_observer = sbar.add("item", {
