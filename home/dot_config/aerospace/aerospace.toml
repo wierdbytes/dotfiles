@@ -169,6 +169,10 @@ if.app-id = 'ru.keepcoder.Telegram'
 run = 'move-node-to-workspace 4'
 
 [[on-window-detected]]
+if.app-id = 'com.hnc.Discord'
+run = 'move-node-to-workspace 4'
+
+[[on-window-detected]]
 if.app-id = 'com.rogueamoeba.audiohijack'
 run = 'move-node-to-workspace 5'
 
