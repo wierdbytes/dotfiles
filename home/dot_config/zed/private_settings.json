@@ -7,9 +7,19 @@
 // custom settings, run the `open default settings` command
 // from the command palette or from `Zed` application menu.
 {
+  "features": {
+    "inline_completion_provider": "supermaven"
+  },
+  "assistant": {
+    "default_model": {
+      "provider": "zed.dev",
+      "model": "claude-3-5-sonnet-20240620"
+    },
+    "version": "2"
+  },
   "vim_mode": true,
   "base_keymap": "VSCode",
-  "theme": "Catppuccin Mocha - No Italics",
+  "theme": "Catppuccin Macchiato - No Italics",
   "telemetry": {
     "metrics": false,
     "diagnostics": false
@@ -19,7 +29,7 @@
   "ui_font_size": 16,
   "buffer_font_size": 14,
   "terminal": {
-    "font_family": "MesloLGL Nerd Font",
+    "font_family": "MesloLGS Nerd Font Mono",
     "font_size": 14
   },
   "gutter": {

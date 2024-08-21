@@ -12,24 +12,10 @@
 
   // Russian layout
   {
-    "context": "Editor && VimControl && !VimWaiting && !menu",
+    "context": "vim_mode == normal",
     "bindings": {
-      "ш": [
-        "vim::PushOperator",
-        {
-          "Object": {
-            "around": false
-          }
-        }
-      ],
-      "ф": [
-        "vim::PushOperator",
-        {
-          "Object": {
-            "around": true
-          }
-        }
-      ],
+      "ш": "vim::InsertBefore",
+      "ф": "vim::InsertAfter",
       "о": "vim::Down",
       "л": "vim::Up",
       "р": "vim::Left",

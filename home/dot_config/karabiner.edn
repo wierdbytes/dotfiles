@@ -267,7 +267,7 @@
             [:p :!SCp :brave]                  ;; pin tab (custom)
             [:h :!Copen_bracket :brave]        ;; back history
             [:l :!Cclose_bracket :brave]       ;; next history
-            
+
             ;; Arc
             [:k :!OCup_arrow :arc]             ;; switch tab up
             [:j :!OCdown_arrow :arc]           ;; switch tab down
@@ -275,12 +275,12 @@
             [:l :!Cright_arrow :arc]           ;; next history
             [:!Ok :!TSclose_bracket :arc]      ;; switch to next split
             [:!Oj :!TSopen_bracket :arc]       ;; switch to prev split
-            [:1 :!TS1 :arc]                    ;; switch to split 1 
-            [:2 :!TS2 :arc]                    ;; switch to split 1 
-            [:3 :!TS3 :arc]                    ;; switch to split 1 
-            [:4 :!TS4 :arc]                    ;; switch to split 1 
-            [:t :!TSequal_sign :arc]           ;; add split 
-            [:!Os :!TShyphen :arc]             ;; close split 
+            [:1 :!TS1 :arc]                    ;; switch to split 1
+            [:2 :!TS2 :arc]                    ;; switch to split 1
+            [:3 :!TS3 :arc]                    ;; switch to split 1
+            [:4 :!TS4 :arc]                    ;; switch to split 1
+            [:t :!TSequal_sign :arc]           ;; add split
+            [:!Os :!TShyphen :arc]             ;; close split
 
             ;; Zoom
             [:a :!CSa :zoom]                  ;; toggle mic
@@ -299,7 +299,7 @@
             [:l :!Os :obsidian]               ;; next history
             [:!Oj :!OSo :obsidian]            ;; switch to left split
             [:!Ok :!OSp :obsidian]            ;; switch to right split
-            
+
             ;; Obsidian
             [:h :!Copen_bracket :intellij]    ;; back history
             [:l :!Cclose_bracket :intellij]   ;; next history
@@ -313,11 +313,11 @@
             ;; Zed
             [:j :!OCleft_arrow :zed]         ;; prev tab
             [:k :!OCright_arrow :zed]        ;; next tab
-            [:h [:g :b] :zed]                ;; pane: go back
-            [:l [:g :f] :zed]                ;; pane: go forward
+            [:h [:!Thyphen] :zed]            ;; pane: go back
+            [:l [:!TShyphen] :zed]           ;; pane: go forward
             [:r [:!OCo] :zed]                ;; projects: open recent
             [:b [:!OCb] :zed]                ;; branches: open recent
-            
+
             ;; Alacritty
             [:u "$HOME/.config/alacritty_opacity.sh" :alacritty]
 
@@ -350,7 +350,7 @@
             ;; [:#CTOf21 :!QWEright_shift :ru {:alone :!OS0}]
 
             ]}
-        
+
         ;; {:des "Yabai driver" :rules [
         ;;   [:!SQWER1 [:yabai-move-to-space "1"]]
         ;;   [:!SQWER2 [:yabai-move-to-space "2"]]
@@ -361,12 +361,12 @@
         ;;   [:!SQWER7 [:yabai-move-to-space "7"]]
         ;;   [:!SQWER8 [:yabai-move-to-space "8"]]
         ;;   [:!SQWER9 [:yabai-move-to-space "9"]]
-          
+
         ;;   ]}
 
         {:des "Aerospace driver" :rules [
           [:!QWERescape [:aerospace "mode service"]]
-          
+
           [:!QWER1 [:aerospace "workspace 1"]]
           [:!QWER2 [:aerospace "workspace 2"]]
           [:!QWER3 [:aerospace "workspace 3"]]
@@ -386,7 +386,7 @@
           [:!SQWER7 [:aerospace "move-node-to-workspace 7"]]
           [:!SQWER8 [:aerospace "move-node-to-workspace 8"]]
           [:!SQWER9 [:aerospace "move-node-to-workspace 9"]]
-          
+
           [:!SQWERh [:aerospace "focus left"]]
           [:!SQWERj [:aerospace "focus down"]]
           [:!SQWERk [:aerospace "focus up"]]
@@ -432,7 +432,7 @@
             [:!Oe "/opt/homebrew/bin/yabai -m window --resize bottom:0:-19"]
             [:!Os "/opt/homebrew/bin/yabai -m window --resize right:-32:0"]
             [:!Of "/opt/homebrew/bin/yabai -m window --resize right:32:0"]
-            
+
             [:!Td "/opt/homebrew/bin/yabai -m window --move rel:0:19"]
             [:!Te "/opt/homebrew/bin/yabai -m window --move rel:0:-19"]
             [:!Ts "/opt/homebrew/bin/yabai -m window --move rel:-32:0"]
