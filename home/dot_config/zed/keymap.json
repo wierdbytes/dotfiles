@@ -59,21 +59,10 @@
   },
 
   {
-    "context": "Editor && vim_mode == normal && (vim_operator == none || vim_operator == n) && !VimWaiting",
+    "context": "VimControl && !menu",
     "bindings": {
       // put key-bindings here if you want them to work only in normal mode
-      "g t": "tab_switcher::Toggle",
-      "g d": "editor::GoToDefinition",
-      "g ctrl-d": "editor::GoToDefinitionSplit",
-      "g i": "editor::GoToImplementation",
-      "g ctrl-i": "editor::GoToImplementationSplit",
-      "g r": "editor::FindAllReferences",
-      "g b": "pane::GoBack",
-      "g f": "pane::GoForward",
-      "g o": "project_symbols::Toggle",
       "t h": "editor::ToggleInlayHints"
-      // "[ d": "editor::GoToPrevDiagnostic",
-      // "] d": "editor::GoToDiagnostic"
     }
   },
   {
