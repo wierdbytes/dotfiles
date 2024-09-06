@@ -53,6 +53,7 @@
         :sbar "/opt/homebrew/bin/sketchybar --trigger %s"
         :yabai-move-to-space "/opt/homebrew/bin/yabai -m window --space %s && /opt/homebrew/bin/sketchybar --trigger windows_on_spaces"
         :aerospace "/opt/homebrew/bin/aerospace %s"
+        :aero-space-to "W=\"%s\"; [ \"$(/opt/homebrew/bin/aerospace list-workspaces --focused)\" = \"$W\" ] && /opt/homebrew/bin/aerospace workspace-back-and-forth || /opt/homebrew/bin/aerospace workspace $W"
         }
 
     :main [
@@ -367,15 +368,15 @@
         {:des "Aerospace driver" :rules [
           [:!QWERescape [:aerospace "mode service"]]
 
-          [:!QWER1 [:aerospace "workspace 1"]]
-          [:!QWER2 [:aerospace "workspace 2"]]
-          [:!QWER3 [:aerospace "workspace 3"]]
-          [:!QWER4 [:aerospace "workspace 4"]]
-          [:!QWER5 [:aerospace "workspace 5"]]
-          [:!QWER6 [:aerospace "workspace 6"]]
-          [:!QWER7 [:aerospace "workspace 7"]]
-          [:!QWER8 [:aerospace "workspace 8"]]
-          [:!QWER9 [:aerospace "workspace 9"]]
+          [:!QWER1 [:aero-space-to "1"]]
+          [:!QWER2 [:aero-space-to "2"]]
+          [:!QWER3 [:aero-space-to "3"]]
+          [:!QWER4 [:aero-space-to "4"]]
+          [:!QWER5 [:aero-space-to "5"]]
+          [:!QWER6 [:aero-space-to "6"]]
+          [:!QWER7 [:aero-space-to "7"]]
+          [:!QWER8 [:aero-space-to "8"]]
+          [:!QWER9 [:aero-space-to "9"]]
 
           [:!SQWER1 [:aerospace "move-node-to-workspace 1"]]
           [:!SQWER2 [:aerospace "move-node-to-workspace 2"]]
