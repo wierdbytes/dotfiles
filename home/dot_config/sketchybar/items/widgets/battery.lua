@@ -30,7 +30,7 @@ local remaining_time = sbar.add("item", {
 })
 
 
-battery:subscribe({"routine", "power_source_change", "system_woke"}, function()
+battery:subscribe({ "routine", "power_source_change", "system_woke" }, function()
   sbar.exec("pmset -g batt", function(batt_info)
     local icon = "!"
     local label = "?"
@@ -78,24 +78,24 @@ battery:subscribe({"routine", "power_source_change", "system_woke"}, function()
 end)
 
 battery:subscribe("mouse.entered", function(env)
-  battery:set( { popup = { drawing = true } })
+  battery:set({ popup = { drawing = true } })
 
   sbar.exec("pmset -g batt", function(batt_info)
     local found, _, remaining = batt_info:find(" (%d+:%d+) remaining")
     local label = found and remaining .. "h" or "No estimate"
-    remaining_time:set( { label = label })
+    remaining_time:set({ label = label })
   end)
 end)
 
 battery:subscribe("mouse.exited", function(env)
-  battery:set( { popup = { drawing = false } })
+  battery:set({ popup = { drawing = false } })
 end)
 
-sbar.add("bracket", "widgets.battery.bracket", { battery.name }, {
-  background = { color = colors.bg1 }
-})
+-- sbar.add("bracket", "widgets.battery.bracket", { battery.name }, {
+--   background = { color = colors.bg1 }
+-- })
 
-sbar.add("item", "widgets.battery.padding", {
-  position = "right",
-  width = settings.group_paddings
-})
+-- sbar.add("item", "widgets.battery.padding", {
+--   position = "right",
+--   width = settings.group_paddings
+-- })

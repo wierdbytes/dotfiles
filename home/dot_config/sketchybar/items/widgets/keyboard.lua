@@ -23,35 +23,37 @@ local keyboard = sbar.add("item", "widgets.keyboard", {
 })
 
 local function get_keyboard_layout()
-  sbar.exec("defaults read ~/Library/Preferences/com.apple.HIToolbox.plist AppleCurrentKeyboardLayoutInputSourceID", function(result)
-    local icon = "??"
-    if result == "com.apple.keylayout.US\n" then
-      -- icon = "🇺🇸"
-      icon = "EN"
-    elseif result == "com.apple.keylayout.Russian\n" then
-      -- icon = "🇷🇺"
-      icon = "RU"
-    end
-    keyboard:set({
-      icon = { string = icon },
-    })
-  end)
+  sbar.exec("defaults read ~/Library/Preferences/com.apple.HIToolbox.plist AppleCurrentKeyboardLayoutInputSourceID",
+    function(result)
+      local icon = "??"
+      if result == "com.apple.keylayout.US\n" then
+        -- icon = "🇺🇸"
+        icon = "EN"
+      elseif result == "com.apple.keylayout.Russian\n" then
+        -- icon = "🇷🇺"
+        icon = "RU"
+      end
+      keyboard:set({
+        icon = { string = icon },
+      })
+    end)
 end
 
 get_keyboard_layout()
 
-keyboard:subscribe({"kb-layout-change"}, function(env)
+keyboard:subscribe({ "kb-layout-change" }, function(env)
   get_keyboard_layout()
-  sbar.delay(1, function() -- когда переключение языка происходит без фокуса в поле ввода - он фактически переключается не сразу
-    get_keyboard_layout()
-  end)
+  sbar.delay(1,
+    function()             -- когда переключение языка происходит без фокуса в поле ввода - он фактически переключается не сразу
+      get_keyboard_layout()
+    end)
 end)
 
-sbar.add("bracket", "widgets.keyboard.bracket", { keyboard.name }, {
-  background = { color = colors.bg1 }
-})
+-- sbar.add("bracket", "widgets.keyboard.bracket", { keyboard.name }, {
+--   background = { color = colors.bg1 }
+-- })
 
-sbar.add("item", "widgets.keyboard.padding", {
-  position = "right",
-  width = settings.group_paddings
-})
+-- sbar.add("item", "widgets.keyboard.padding", {
+--   position = "right",
+--   width = settings.group_paddings
+-- })

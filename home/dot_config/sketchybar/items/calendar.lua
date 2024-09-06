@@ -32,15 +32,15 @@ local cal = sbar.add("item", {
 })
 
 -- Double border for calendar using a single item bracket
-sbar.add("bracket", { cal.name }, {
-  background = {
-    color = colors.bg1,
-    border_color = colors.bg2,
-  }
-})
+-- sbar.add("bracket", { cal.name }, {
+--   background = {
+--     color = colors.bg1,
+--     border_color = colors.bg2,
+--   }
+-- })
 
--- Padding item required because of bracket
-sbar.add("item", { position = "right", width = settings.group_paddings })
+-- -- Padding item required because of bracket
+-- sbar.add("item", { position = "right", width = settings.group_paddings })
 
 cal:subscribe({ "forced", "routine", "system_woke" }, function(env)
   cal:set({ icon = os.date("[%d.%m]"), label = os.date("%H:%M:%S") })
