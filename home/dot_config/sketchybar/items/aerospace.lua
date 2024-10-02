@@ -61,8 +61,7 @@ end
 sbar.add("item", { width = 3 })
 
 for i = 1, 9, 1 do
-  local space = sbar.add("space", "space." .. i, {
-    space = i,
+  local space = sbar.add("item", "space." .. i, {
     icon = {
       font = { family = settings.font.numbers },
       string = i,
@@ -103,8 +102,7 @@ for i = 1, 9, 1 do
   })
 
   -- Padding space
-  sbar.add("space", "space.padding." .. i, {
-    space = i,
+  sbar.add("item", "space.padding." .. i, {
     script = "",
     width = settings.group_paddings,
   })
