@@ -2,12 +2,29 @@ local icons = require("icons")
 local colors = require("colors")
 local settings = require("settings")
 
--- Execute the event provider binary which provides the event "network_update"
--- for the network interface "en0", which is fired every 2.0 seconds.
 sbar.exec(
-  "killall network_load >/dev/null; $CONFIG_DIR/helpers/event_providers/network_load/bin/network_load en0 network_update 2.0")
+  "pkill -f 'netstat -w1' ; netstat -w1 | awk '/[0-9]/ {print $3 \",\" $6; fflush(stdout)}' | xargs -I {} bash -c \"sketchybar --trigger netstat_update DOWNLOAD=\\$(cut -d, -f1 <<< {}) UPLOAD=\\$(cut -d, -f2 <<< {})\""
+)
 
--- local popup_width = 250
+local function formatBytes(bytes)
+  if bytes == 0 then
+    return "0b"
+  end
+
+  local k = 1024
+  local dm = 1
+  local sizes = { "Bs", "kB", "mB", "gB", "tB", "pB", "eB", "zB", "yB" }
+
+  local i = math.floor(math.log(bytes) / math.log(k))
+
+  local value = bytes / (k ^ i)
+  if value >= 100 then
+    dm = 0
+  end
+  local formattedValue = string.format("%." .. dm .. "f", value)
+
+  return formattedValue .. " " .. sizes[i + 1]
+end
 
 local wifi_up = sbar.add("item", "widgets.wifi1", {
   position = "right",
@@ -28,9 +45,9 @@ local wifi_up = sbar.add("item", "widgets.wifi1", {
       size = 9.0,
     },
     color = colors.red,
-    string = "???  Bps",
+    string = "??? B",
     align = "right",
-    -- width = 80,
+    width = 50,
   },
   y_offset = 4,
 })
@@ -53,9 +70,9 @@ local wifi_down = sbar.add("item", "widgets.wifi2", {
       size = 9.0,
     },
     color = colors.blue,
-    string = "???  Bps",
+    string = "??? B",
     align = "right",
-    -- width = 80
+    width = 50
   },
   y_offset = -4,
 })
@@ -66,44 +83,7 @@ local wifi = sbar.add("item", "widgets.wifi.padding", {
   label = { drawing = false },
 })
 
--- Background around the item
-local wifi_bracket = sbar.add("bracket", "widgets.wifi.bracket", {
-  wifi.name,
-  wifi_up.name,
-  wifi_down.name
-}, {
-  -- background = { color = colors.bg1 },
-  popup = { align = "center", height = 30 }
-})
-
-sbar.add("item", { position = "right", width = settings.group_paddings })
-
-local function network_update(env)
-  local up_color = (env.upload == "000") and colors.grey or colors.red
-  local down_color = (env.download == "000") and colors.grey or colors.blue
-
-  local ed_up = string.gsub(env.upload, "^000", "___")
-  ed_up = string.gsub(ed_up, "^00", "__")
-  ed_up = string.gsub(ed_up, "^0", "_")
-  local ed_down = string.gsub(env.download, "^000", "___")
-  ed_down = string.gsub(ed_down, "^00", "__")
-  ed_down = string.gsub(ed_down, "^0", "_")
-
-  wifi_up:set({
-    icon = { color = up_color },
-    label = {
-      string = ed_up .. " " .. env.up_unit,
-      color = up_color
-    }
-  })
-  wifi_down:set({
-    icon = { color = down_color },
-    label = {
-      string = ed_down .. " " .. env.down_unit,
-      color = down_color
-    }
-  })
-end
+-- sbar.add("item", { position = "right", width = settings.group_paddings })
 
 local function wifi_change(env)
   sbar.exec("ipconfig getifaddr en0", function(ip)
@@ -117,5 +97,27 @@ local function wifi_change(env)
   end)
 end
 
-wifi_up:subscribe("network_update", network_update)
+wifi_up:subscribe("netstat_update", function(env)
+  local download = formatBytes(env.DOWNLOAD)
+  local upload = formatBytes(env.UPLOAD)
+  wifi_up:set({
+    label = {
+      string = upload,
+      color = colors.red,
+    },
+    icon = {
+      color = colors.red
+    },
+  })
+  wifi_down:set({
+    label = {
+      string = download,
+      color = colors.blue,
+    },
+    icon = {
+      color = colors.blue
+    },
+  })
+end)
+
 wifi:subscribe({ "wifi_change", "system_woke" }, wifi_change)

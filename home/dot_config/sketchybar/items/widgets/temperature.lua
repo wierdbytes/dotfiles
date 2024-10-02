@@ -25,7 +25,6 @@ local function update()
     end)
   sbar.exec("$CONFIG_DIR/helpers/event_providers/macos-temp-tool/macos-temp-tool -p | awk '{print $NF}' | tr -d '\n'",
     function(result)
-      print(result)
       local icon = icons.therm.none
       local color = colors.grey
       if result == "Nominal" then
