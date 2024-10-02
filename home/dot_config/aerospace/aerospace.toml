@@ -29,7 +29,7 @@ enable-normalization-opposite-orientation-for-nested-containers = true
 accordion-padding = 8
 
 # Possible values: tiles|accordion
-default-root-container-layout = 'tiles'
+default-root-container-layout = 'accordion'
 
 # Possible values: horizontal|vertical|auto
 # 'auto' means: wide monitor (anything wider than high) gets horizontal orientation,
@@ -46,13 +46,13 @@ key-mapping.preset = 'qwerty'
 # See https://nikitabobko.github.io/AeroSpace/commands#move-mouse
 on-focused-monitor-changed = ['move-mouse monitor-lazy-center']
 on-focus-changed = [
-  'exec-and-forget sketchybar --trigger aerospace_focus_changed',
+    'exec-and-forget sketchybar --trigger aerospace_focus_changed',
 ]
 
 exec-on-workspace-change = [
-  '/bin/bash',
-  '-c',
-  'sketchybar --trigger aerospace_workspace_change FOCUSED_WORKSPACE=space.$AEROSPACE_FOCUSED_WORKSPACE',
+    '/bin/bash',
+    '-c',
+    'sketchybar --trigger aerospace_workspace_change FOCUSED_WORKSPACE=space.$AEROSPACE_FOCUSED_WORKSPACE',
 ]
 
 # Gaps between windows (inner-*) and between monitor edges (outer-*).
@@ -122,10 +122,8 @@ comma = ['layout accordion horizontal vertical', 'mode main']
 backspace = ['close-all-windows-but-current', 'mode main']
 r = ['flatten-workspace-tree', 'mode main']                # reset layout
 #s = ['layout sticky tiling', 'mode main'] # sticky is not yet supported https://github.com/nikitabobko/AeroSpace/issues/2
-f = [
-  'layout floating tiling',
-  'mode main',
-] # Toggle between floating and tiling layout
+f = ['layout floating tiling', 'mode main']
+# Toggle between floating and tiling layout
 w = ['fullscreen', 'mode main']
 
 # resize
@@ -154,6 +152,10 @@ run = 'layout floating'
 [[on-window-detected]]
 if.app-id = 'company.thebrowser.Browser'
 run = 'move-node-to-workspace 1'
+
+[[on-window-detected]]
+if.app-id = 'com.apple.ActivityMonitor'
+run = 'move-node-to-workspace 2'
 
 [[on-window-detected]]
 if.app-id = 'com.microsoft.VSCode'
@@ -193,6 +195,10 @@ run = 'move-node-to-workspace 4'
 
 [[on-window-detected]]
 if.app-id = 'com.hnc.Discord'
+run = 'move-node-to-workspace 4'
+
+[[on-window-detected]]
+if.app-id = 'com.apple.mail'
 run = 'move-node-to-workspace 4'
 
 [[on-window-detected]]

@@ -1,5 +1,5 @@
 -- require("items.apple")
-require("items.menus")
+-- require("items.menus")
 -- require("items.spaces")
 require("items.aerospace")
 require("items.front_app")
