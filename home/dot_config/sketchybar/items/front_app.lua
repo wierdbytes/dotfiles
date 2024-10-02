@@ -2,6 +2,7 @@ local colors = require("colors")
 local settings = require("settings")
 
 local front_app = sbar.add("item", "front_app", {
+  position = "center",
   display = "active",
   icon = {
     background = {
@@ -26,6 +27,9 @@ local function end_animation(env)
   sbar.animate("tanh", 5, function()
     front_app:set({
       y_offset = 0,
+      label = {
+        color = colors.with_alpha(colors.white, 1.0),
+      },
     })
   end)
 end
@@ -34,6 +38,9 @@ local function start_animation(env)
   sbar.animate("tanh", 5, function()
     front_app:set({
       y_offset = 24,
+      label = {
+        color = colors.with_alpha(colors.white, 0.0),
+      },
     })
   end)
 
