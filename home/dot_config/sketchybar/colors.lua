@@ -22,7 +22,7 @@ return {
   },
 
   bg1 = 0xff24273a,
-  
+
   bg2 = 0xff24273a,
 
   bg3 = 0x0f363944,

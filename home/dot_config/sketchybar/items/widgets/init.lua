@@ -1,3 +1,5 @@
+require("items.widgets.notify")
+require("items.widgets.calendar")
 require("items.widgets.keyboard")
 require("items.widgets.battery")
 -- require("items.widgets.volume")
