@@ -187,7 +187,7 @@
         {:des "Utility (Enter/Tab/Caps/...)" :rules [
             [:!Cf21 :!Cgrave_accent_and_tilde :zmk]     ;; CMD + `
             ;; [:!Tf21 :!Tgrave_accent_and_tilde]       ;; Control + `
-            [{:sim [:f :d] :modi {                      ;; CapsLock
+            [{:sim [:f :e] :modi {                      ;; CapsLock
                     :optional [
                         :left_command
                         :left_shift
@@ -201,7 +201,7 @@
                 nil
                 {:params {:sim 30}}
                 ]
-            [{:sim [:s :f] :modi {                      ;; Tab
+            [{:sim [:w :f] :modi {                      ;; Tab
                     :optional [
                         :left_command
                         :left_shift
@@ -368,15 +368,15 @@
         {:des "Aerospace driver" :rules [
           [:!QWERescape [:aerospace "mode service"]]
 
-          [:!QWER1 [:aero-space-to "1"]]
-          [:!QWER2 [:aero-space-to "2"]]
-          [:!QWER3 [:aero-space-to "3"]]
-          [:!QWER4 [:aero-space-to "4"]]
-          [:!QWER5 [:aero-space-to "5"]]
-          [:!QWER6 [:aero-space-to "6"]]
-          [:!QWER7 [:aero-space-to "7"]]
-          [:!QWER8 [:aero-space-to "8"]]
-          [:!QWER9 [:aero-space-to "9"]]
+        ;;   [:!QWER1 [:aero-space-to "1"]]
+        ;;   [:!QWER2 [:aero-space-to "2"]]
+        ;;   [:!QWER3 [:aero-space-to "3"]]
+        ;;   [:!QWER4 [:aero-space-to "4"]]
+        ;;   [:!QWER5 [:aero-space-to "5"]]
+        ;;   [:!QWER6 [:aero-space-to "6"]]
+        ;;   [:!QWER7 [:aero-space-to "7"]]
+        ;;   [:!QWER8 [:aero-space-to "8"]]
+        ;;   [:!QWER9 [:aero-space-to "9"]]
 
           [:!SQWER1 [:aerospace "move-node-to-workspace 1"]]
           [:!SQWER2 [:aerospace "move-node-to-workspace 2"]]
@@ -513,22 +513,18 @@
             [:##equal_sign :f12]
             ]}
 
-        {:des "Enter Layer" :rules [
-            :zmk
-            [:return_or_enter ["E1" 1] nil {:afterup ["E1" 0]}]
-
-            [:condi :E1 :ru]
-
-            [:c [:c :g :f :c :b :comma :j]]                 ;; спасибо
-            [:s [:t :o :backslash]]                         ;; ещё
-            [:g [:g :j :semicolon :f :k :e :q :c :n :f]]    ;; пожалуйста
-            [:r [:r :j :n :j :h :s :q]]                     ;; который
-
-            [:condi :E1 :en]
-
-            ;; существует задержка при переключении языков, примерно 3 символа вводятся до переключения языка
-            ;; [:q [{:select_input_source {:input_source_id "^com\\.apple\\.keylayout\\.Russian$"}} :g :h :b :d :t :n {:select_input_source {:input_source_id "^com\\.apple\\.keylayout\\.US$"}}]] ;;
-            ]}
+        ;; {:des "Enter Layer" :rules [
+        ;;     :zmk
+        ;;     [:return_or_enter ["E1" 1] nil {:afterup ["E1" 0]}]
+        ;;     [:condi :E1 :ru]
+        ;;     [:c [:c :g :f :c :b :comma :j]]                 ;; спасибо
+        ;;     [:s [:t :o :backslash]]                         ;; ещё
+        ;;     [:g [:g :j :semicolon :f :k :e :q :c :n :f]]    ;; пожалуйста
+        ;;     [:r [:r :j :n :j :h :s :q]]                     ;; который
+        ;;     [:condi :E1 :en]
+        ;;     ;; существует задержка при переключении языков, примерно 3 символа вводятся до переключения языка
+        ;;     ;; [:q [{:select_input_source {:input_source_id "^com\\.apple\\.keylayout\\.Russian$"}} :g :h :b :d :t :n {:select_input_source {:input_source_id "^com\\.apple\\.keylayout\\.US$"}}]] ;;
+        ;;     ]}
 
         {:des "M3 Layer" :rules [
             ;; q w e { }       @ # : ; ^
