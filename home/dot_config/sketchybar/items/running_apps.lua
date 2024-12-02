@@ -1,7 +1,5 @@
 local colors = require("colors")
-local icons = require("icons")
 local settings = require("settings")
-local app_icons = require("helpers.app_icons")
 
 local spaces = {}
 local spaced_apps = {}
@@ -142,7 +140,7 @@ window_observer:subscribe("space_windows_change", function(env)
   end
 
   for app, item in pairs(old_apps) do
-    sbar.exec("sketchybar --remove " .. app, function(result, exit_code)
+    sbar.exec("sketchybar --remove '" .. app .. "'", function(result, exit_code)
       spaced_apps[space][app] = nil
     end)
   end
