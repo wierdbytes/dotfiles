@@ -633,22 +633,22 @@
             [:##non_us_backslash ["M4" 1] :mac-keys {:afterup ["M4" 0]}]
 
             ;; permanent layer on mac-keys
-            [{:sim [:d :w] :modi {
-                    :optional [
-                        :caps_lock
-                        ]}}
-                [{:set ["M4" 0] :repeat false} {:noti {:id :mynoty :text ""}}]
-                [:mac-keys :M4]
-                {:params {:sim 50}}
-                ]
-            [{:sim [:d :w] :modi {
-                    :optional [
-                        :caps_lock
-                        ]}}
-                [{:set ["M4" 1] :repeat false} {:noti {:id :mynoty :text "M4 Layer"}}]
-                [:mac-keys :!M4]
-                {:params {:sim 50}}
-                ]
+            ;; [{:sim [:d :w] :modi {
+            ;;         :optional [
+            ;;             :caps_lock
+            ;;             ]}}
+            ;;     [{:set ["M4" 0] :repeat false} {:noti {:id :mynoty :text ""}}]
+            ;;     [:mac-keys :M4]
+            ;;     {:params {:sim 50}}
+            ;;     ]
+            ;; [{:sim [:d :w] :modi {
+            ;;         :optional [
+            ;;             :caps_lock
+            ;;             ]}}
+            ;;     [{:set ["M4" 1] :repeat false} {:noti {:id :mynoty :text "M4 Layer"}}]
+            ;;     [:mac-keys :!M4]
+            ;;     {:params {:sim 50}}
+            ;;     ]
 
             [:condi :M4]
             ;; arrows and page up/down
