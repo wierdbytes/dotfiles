@@ -454,7 +454,7 @@
 
         {:des "M2 Layer" :rules [
             :zmk
-            [:##f22 ["M2" 1] nil {:afterup ["M2" 0]}]
+            ;; [:##f22 ["M2" 1] nil {:afterup ["M2" 0]}]
 
             [:condi :M2]
 
@@ -530,6 +530,10 @@
             ;; q w e { }       @ # : ; ^
             ;; = s & [ ]       - " ' * ! $
             ;; % < > ( )       _ + , . ?
+
+            ;; for ru layout without M3 layer
+            [:!Sgrave_accent_and_tilde :!Om :ru]
+            [:grave_accent_and_tilde :!OS0 :ru]
 
             :zmk
             [:#Sf23 ["M3" 1] nil {:afterup ["M3" 0]}]
