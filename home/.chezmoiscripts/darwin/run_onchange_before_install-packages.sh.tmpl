@@ -3,6 +3,7 @@
 set -eufo pipefail
 
 {{ $taps := list
+
      "felixkratz/formulae"
      "yqrashawn/goku" -}}
 {{ $brews := list
@@ -23,6 +24,7 @@ set -eufo pipefail
      "zsh-syntax-highlighting"
      "jq" -}}
 {{ $casks := list
+     "leader-key"
      "raycast"
      "karabiner-elements"
      "sf-symbols"
@@ -30,7 +32,6 @@ set -eufo pipefail
      "homebrew/cask-fonts/font-sf-pro"
      "homebrew/cask-fonts/font-meslo-lg-nerd-font"
      "homebrew/cask-fonts/font-jetbrains-mono-nerd-font"
-     "nikitabobko/tap/aerospace"
      "zed"
      "hammerspoon" -}}
 
