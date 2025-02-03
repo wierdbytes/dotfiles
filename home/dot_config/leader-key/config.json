@@ -1,22 +1,17 @@
 {
+  "label" : "Leader Key",
   "actions" : [
-    {
-      "value" : "btt://execute_assigned_actions_for_trigger/?uuid=1B71B2B8-EDBC-410E-BDD6-556E2E0D6A5D",
-      "key" : "e",
-      "type" : "url",
-      "label" : ""
-    },
     {
       "actions" : [
         {
-          "key" : "z",
-          "label" : "",
+          "type" : "application",
           "value" : "/Applications/zoom.us.app",
-          "type" : "application"
+          "label" : "",
+          "key" : "z"
         },
         {
-          "value" : "/Applications/Arc.app",
           "key" : "b",
+          "value" : "/Applications/Arc.app",
           "type" : "application",
           "label" : "Browser"
         },
@@ -29,77 +24,163 @@
         {
           "type" : "application",
           "key" : "m",
-          "value" : "/System/Applications/Music.app",
+          "label" : "",
+          "value" : "/System/Applications/Music.app"
+        },
+        {
+          "key" : "f",
+          "label" : "",
+          "type" : "application",
+          "value" : "/System/Library/CoreServices/Finder.app"
+        },
+        {
+          "value" : "/Applications/Telegram.app",
+          "type" : "application",
+          "label" : "",
+          "key" : "d"
+        },
+        {
+          "key" : "c",
+          "type" : "application",
+          "label" : "",
+          "value" : "/System/Applications/Calendar.app"
+        },
+        {
+          "key" : "v",
+          "label" : "",
+          "value" : "/Applications/Cursor.app",
+          "type" : "application"
+        },
+        {
+          "key" : "o",
+          "type" : "application",
+          "value" : "/Applications/Obsidian.app",
           "label" : ""
         },
         {
           "label" : "",
-          "key" : "f",
-          "value" : "/System/Library/CoreServices/Finder.app",
+          "key" : "g",
+          "value" : "/Applications/Figma.app",
           "type" : "application"
-        },
-        {
-          "type" : "application",
-          "value" : "/Applications/Telegram.app",
-          "label" : null,
-          "key" : "d"
         }
       ],
-      "type" : "group",
       "label" : "Apps",
+      "type" : "group",
       "key" : "a"
     },
     {
-      "type" : "group",
-      "key" : "r",
       "actions" : [
         {
+          "key" : "r",
           "type" : "application",
-          "label" : "",
           "value" : "/Applications/Audio Hijack.app",
-          "key" : "r"
+          "label" : ""
         },
         {
+          "type" : "group",
+          "key" : "s",
           "actions" : [
             {
-              "type" : "url",
+              "label" : "All-in-One",
               "value" : "cleanshot://all-in-one",
               "key" : "q",
-              "label" : "All-in-One"
+              "type" : "url"
             },
             {
-              "value" : "cleanshot://capture-area",
               "type" : "url",
+              "value" : "cleanshot://capture-area",
               "key" : "a",
               "label" : "Capture Area"
             },
             {
+              "key" : "h",
               "type" : "url",
               "value" : "cleanshot://open-history",
-              "key" : "h",
               "label" : "History"
             },
             {
               "key" : "r",
               "label" : "Recently closed",
-              "value" : "cleanshot://restore-recently-closed",
-              "type" : "url"
+              "type" : "url",
+              "value" : "cleanshot://restore-recently-closed"
             }
           ],
-          "type" : "group",
-          "key" : "s",
           "label" : "CleanShot X"
         }
       ],
-      "label" : "Record"
+      "label" : "Record",
+      "type" : "group",
+      "key" : "r"
     },
     {
-      "key" : "w",
-      "label" : "",
-      "type" : "command",
-      "value" : "open -a Mail"
+      "type" : "group",
+      "key" : "f",
+      "actions" : [
+        {
+          "type" : "url",
+          "label" : "NS",
+          "value" : "https://www.twitch.tv/just_ns",
+          "key" : "j"
+        },
+        {
+          "label" : "DreadzTV",
+          "type" : "url",
+          "key" : "d",
+          "value" : "https://www.twitch.tv/dreadztv"
+        },
+        {
+          "label" : "YouTube",
+          "value" : "https://www.youtube.com/feed/subscriptions",
+          "key" : "y",
+          "type" : "url"
+        }
+      ],
+      "label" : "Fun"
+    },
+    {
+      "key" : "d",
+      "type" : "group",
+      "actions" : [
+        {
+          "key" : "v",
+          "type" : "application",
+          "label" : "",
+          "value" : "/Applications/Cursor.app"
+        },
+        {
+          "value" : "https://git.fabrique.studio",
+          "type" : "url",
+          "label" : "[fab] GitLab",
+          "key" : "g"
+        },
+        {
+          "key" : "t",
+          "label" : "[fab] YouTrack",
+          "value" : "https://youtrack.fabrique.studio",
+          "type" : "url"
+        },
+        {
+          "key" : "r",
+          "value" : "raycast://extensions/tonka3000/gitlab/mr_my",
+          "type" : "url",
+          "label" : "[fab] My MRs"
+        }
+      ],
+      "label" : "Develop"
+    },
+    {
+      "type" : "group",
+      "key" : "s",
+      "actions" : [
+        {
+          "label" : "Snippets",
+          "key" : "s",
+          "type" : "url",
+          "value" : "raycast://extensions/raycast/snippets/search-snippets"
+        }
+      ],
+      "label" : "Tools"
     }
   ],
-  "label" : "Leader Key",
   "type" : "group"
 }
