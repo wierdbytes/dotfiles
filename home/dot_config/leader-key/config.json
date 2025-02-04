@@ -1,37 +1,39 @@
 {
+  "type" : "group",
   "label" : "Leader Key",
   "actions" : [
     {
+      "key" : "a",
       "actions" : [
         {
-          "type" : "application",
           "value" : "/Applications/zoom.us.app",
-          "label" : "",
-          "key" : "z"
+          "key" : "z",
+          "type" : "application",
+          "label" : ""
         },
         {
-          "key" : "b",
-          "value" : "/Applications/Arc.app",
           "type" : "application",
+          "value" : "/Applications/Arc.app",
+          "key" : "b",
           "label" : "Browser"
         },
         {
-          "type" : "application",
           "label" : "Email",
+          "key" : "e",
           "value" : "/System/Applications/Mail.app",
-          "key" : "e"
+          "type" : "application"
         },
         {
-          "type" : "application",
-          "key" : "m",
           "label" : "",
-          "value" : "/System/Applications/Music.app"
+          "value" : "/System/Applications/Music.app",
+          "type" : "application",
+          "key" : "m"
         },
         {
           "key" : "f",
           "label" : "",
-          "type" : "application",
-          "value" : "/System/Library/CoreServices/Finder.app"
+          "value" : "/System/Library/CoreServices/Finder.app",
+          "type" : "application"
         },
         {
           "value" : "/Applications/Telegram.app",
@@ -40,77 +42,82 @@
           "key" : "d"
         },
         {
-          "key" : "c",
-          "type" : "application",
           "label" : "",
+          "type" : "application",
+          "key" : "c",
           "value" : "/System/Applications/Calendar.app"
         },
         {
-          "key" : "v",
-          "label" : "",
           "value" : "/Applications/Cursor.app",
-          "type" : "application"
-        },
-        {
-          "key" : "o",
           "type" : "application",
-          "value" : "/Applications/Obsidian.app",
+          "key" : "v",
           "label" : ""
         },
         {
           "label" : "",
-          "key" : "g",
+          "type" : "application",
+          "value" : "/Applications/Obsidian.app",
+          "key" : "o"
+        },
+        {
+          "label" : "",
           "value" : "/Applications/Figma.app",
-          "type" : "application"
+          "type" : "application",
+          "key" : "g"
+        },
+        {
+          "type" : "application",
+          "key" : "t",
+          "label" : null,
+          "value" : "/Applications/Alacritty.app"
         }
       ],
       "label" : "Apps",
-      "type" : "group",
-      "key" : "a"
+      "type" : "group"
     },
     {
+      "label" : "Record",
+      "key" : "r",
+      "type" : "group",
       "actions" : [
         {
           "key" : "r",
-          "type" : "application",
           "value" : "/Applications/Audio Hijack.app",
+          "type" : "application",
           "label" : ""
         },
         {
-          "type" : "group",
           "key" : "s",
+          "type" : "group",
+          "label" : "CleanShot X",
           "actions" : [
             {
-              "label" : "All-in-One",
-              "value" : "cleanshot://all-in-one",
+              "type" : "url",
               "key" : "q",
+              "value" : "cleanshot://all-in-one",
+              "label" : "All-in-One"
+            },
+            {
+              "label" : "Capture Area",
+              "value" : "cleanshot://capture-area",
+              "key" : "a",
+              "type" : "url"
+            },
+            {
+              "value" : "cleanshot://open-history",
+              "key" : "h",
+              "label" : "History",
               "type" : "url"
             },
             {
               "type" : "url",
-              "value" : "cleanshot://capture-area",
-              "key" : "a",
-              "label" : "Capture Area"
-            },
-            {
-              "key" : "h",
-              "type" : "url",
-              "value" : "cleanshot://open-history",
-              "label" : "History"
-            },
-            {
-              "key" : "r",
               "label" : "Recently closed",
-              "type" : "url",
+              "key" : "r",
               "value" : "cleanshot://restore-recently-closed"
             }
-          ],
-          "label" : "CleanShot X"
+          ]
         }
-      ],
-      "label" : "Record",
-      "type" : "group",
-      "key" : "r"
+      ]
     },
     {
       "type" : "group",
@@ -123,64 +130,118 @@
           "key" : "j"
         },
         {
-          "label" : "DreadzTV",
           "type" : "url",
           "key" : "d",
+          "label" : "DreadzTV",
           "value" : "https://www.twitch.tv/dreadztv"
         },
         {
-          "label" : "YouTube",
-          "value" : "https://www.youtube.com/feed/subscriptions",
+          "type" : "url",
           "key" : "y",
-          "type" : "url"
+          "label" : "YouTube",
+          "value" : "https://www.youtube.com/feed/subscriptions"
         }
       ],
       "label" : "Fun"
     },
     {
-      "key" : "d",
       "type" : "group",
+      "label" : "Develop",
       "actions" : [
         {
-          "key" : "v",
-          "type" : "application",
-          "label" : "",
-          "value" : "/Applications/Cursor.app"
-        },
-        {
+          "key" : "g",
+          "type" : "url",
           "value" : "https://git.fabrique.studio",
-          "type" : "url",
-          "label" : "[fab] GitLab",
-          "key" : "g"
+          "label" : "[fab] GitLab"
         },
         {
-          "key" : "t",
-          "label" : "[fab] YouTrack",
           "value" : "https://youtrack.fabrique.studio",
-          "type" : "url"
+          "type" : "url",
+          "key" : "t",
+          "label" : "[fab] YouTrack"
         },
         {
-          "key" : "r",
-          "value" : "raycast://extensions/tonka3000/gitlab/mr_my",
+          "label" : "[fab] My MRs",
           "type" : "url",
-          "label" : "[fab] My MRs"
+          "value" : "raycast://extensions/tonka3000/gitlab/mr_my",
+          "key" : "r"
+        },
+        {
+          "label" : "",
+          "key" : "v",
+          "value" : "/Applications/Cursor.app",
+          "type" : "application"
         }
       ],
-      "label" : "Develop"
+      "key" : "d"
     },
     {
       "type" : "group",
-      "key" : "s",
       "actions" : [
         {
-          "label" : "Snippets",
           "key" : "s",
+          "value" : "raycast://extensions/raycast/snippets/search-snippets",
           "type" : "url",
-          "value" : "raycast://extensions/raycast/snippets/search-snippets"
+          "label" : "Snippets"
+        },
+        {
+          "value" : "raycast://extensions/raycast/system/toggle-system-appearance",
+          "type" : "url",
+          "label" : "Color theme",
+          "key" : "b"
         }
       ],
-      "label" : "Tools"
+      "label" : "Tools",
+      "key" : "t"
+    },
+    {
+      "actions" : [
+        {
+          "type" : "url",
+          "key" : "s",
+          "value" : "btt://execute_assigned_actions_for_trigger/?uuid=0D905CF6-A3DD-47C0-ACB8-102AD10029EB",
+          "label" : "Switch"
+        },
+        {
+          "value" : "btt://execute_assigned_actions_for_trigger/?uuid=16F1F51E-06E1-4FF6-8E42-C461C47058F5",
+          "label" : "Full",
+          "key" : "f",
+          "type" : "url"
+        },
+        {
+          "value" : "btt://execute_assigned_actions_for_trigger/?uuid=F343317E-ECD6-47BD-B0F2-262E212102C5",
+          "label" : "Right half",
+          "key" : "g",
+          "type" : "url"
+        },
+        {
+          "value" : "btt://execute_assigned_actions_for_trigger/?uuid=E061BCA7-B95F-4DCC-9DF2-1FF376A7DA96",
+          "label" : "Left half",
+          "key" : "d",
+          "type" : "url"
+        },
+        {
+          "value" : "btt://execute_assigned_actions_for_trigger/?uuid=A4BF9A2F-7EF3-4E8E-94A3-9080B74B42C3",
+          "label" : "Upper half",
+          "key" : "r",
+          "type" : "url"
+        },
+        {
+          "value" : "btt://execute_assigned_actions_for_trigger/?uuid=E01AA8D0-9911-4458-BBC8-DFBC08149A88",
+          "label" : "Lower half",
+          "key" : "v",
+          "type" : "url"
+        },
+        {
+          "value" : "btt://execute_assigned_actions_for_trigger/?uuid=22A2A1A2-F474-4A83-819C-3F3374F0CE9E",
+          "label" : "Notifications",
+          "key" : "t",
+          "type" : "url"
+        }
+      ],
+      "type" : "group",
+      "key" : "w",
+      "label" : "Windows"
     }
-  ],
-  "type" : "group"
+  ]
 }
