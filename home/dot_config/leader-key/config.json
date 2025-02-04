@@ -1,15 +1,13 @@
 {
-  "type" : "group",
-  "label" : "Leader Key",
   "actions" : [
     {
-      "key" : "a",
+      "type" : "group",
       "actions" : [
         {
-          "value" : "/Applications/zoom.us.app",
-          "key" : "z",
+          "label" : "",
           "type" : "application",
-          "label" : ""
+          "value" : "/Applications/zoom.us.app",
+          "key" : "z"
         },
         {
           "type" : "application",
@@ -18,230 +16,232 @@
           "label" : "Browser"
         },
         {
-          "label" : "Email",
+          "type" : "application",
           "key" : "e",
-          "value" : "/System/Applications/Mail.app",
-          "type" : "application"
+          "label" : "Email",
+          "value" : "/System/Applications/Mail.app"
         },
         {
-          "label" : "",
+          "type" : "application",
+          "key" : "m",
           "value" : "/System/Applications/Music.app",
-          "type" : "application",
-          "key" : "m"
+          "label" : ""
         },
         {
-          "key" : "f",
-          "label" : "",
           "value" : "/System/Library/CoreServices/Finder.app",
-          "type" : "application"
-        },
-        {
-          "value" : "/Applications/Telegram.app",
+          "key" : "f",
           "type" : "application",
-          "label" : "",
-          "key" : "d"
+          "label" : ""
         },
         {
-          "label" : "",
+          "key" : "d",
+          "type" : "application",
+          "value" : "/Applications/Telegram.app",
+          "label" : ""
+        },
+        {
+          "value" : "/System/Applications/Calendar.app",
           "type" : "application",
           "key" : "c",
-          "value" : "/System/Applications/Calendar.app"
-        },
-        {
-          "value" : "/Applications/Cursor.app",
-          "type" : "application",
-          "key" : "v",
           "label" : ""
         },
         {
           "label" : "",
-          "type" : "application",
-          "value" : "/Applications/Obsidian.app",
-          "key" : "o"
+          "value" : "/Applications/Cursor.app",
+          "key" : "v",
+          "type" : "application"
         },
         {
           "label" : "",
-          "value" : "/Applications/Figma.app",
-          "type" : "application",
-          "key" : "g"
+          "value" : "/Applications/Obsidian.app",
+          "key" : "o",
+          "type" : "application"
         },
         {
           "type" : "application",
+          "label" : "",
+          "value" : "/Applications/Figma.app",
+          "key" : "g"
+        },
+        {
+          "label" : "",
           "key" : "t",
-          "label" : null,
+          "type" : "application",
           "value" : "/Applications/Alacritty.app"
         }
       ],
-      "label" : "Apps",
-      "type" : "group"
+      "key" : "a",
+      "label" : "Apps"
     },
     {
-      "label" : "Record",
-      "key" : "r",
       "type" : "group",
       "actions" : [
         {
           "key" : "r",
-          "value" : "/Applications/Audio Hijack.app",
           "type" : "application",
+          "value" : "/Applications/Audio Hijack.app",
           "label" : ""
         },
         {
-          "key" : "s",
-          "type" : "group",
-          "label" : "CleanShot X",
           "actions" : [
             {
-              "type" : "url",
-              "key" : "q",
               "value" : "cleanshot://all-in-one",
+              "key" : "q",
+              "type" : "url",
               "label" : "All-in-One"
             },
             {
-              "label" : "Capture Area",
-              "value" : "cleanshot://capture-area",
               "key" : "a",
+              "value" : "cleanshot://capture-area",
+              "label" : "Capture Area",
               "type" : "url"
             },
             {
-              "value" : "cleanshot://open-history",
               "key" : "h",
+              "type" : "url",
               "label" : "History",
-              "type" : "url"
+              "value" : "cleanshot://open-history"
             },
             {
-              "type" : "url",
-              "label" : "Recently closed",
               "key" : "r",
-              "value" : "cleanshot://restore-recently-closed"
+              "type" : "url",
+              "value" : "cleanshot://restore-recently-closed",
+              "label" : "Recently closed"
             }
-          ]
+          ],
+          "key" : "s",
+          "label" : "CleanShot X",
+          "type" : "group"
+        }
+      ],
+      "key" : "r",
+      "label" : "Record"
+    },
+    {
+      "key" : "f",
+      "label" : "Fun",
+      "type" : "group",
+      "actions" : [
+        {
+          "value" : "open https://www.twitch.tv/just_ns",
+          "key" : "j",
+          "type" : "command",
+          "label" : "NS"
+        },
+        {
+          "key" : "d",
+          "type" : "command",
+          "value" : "open https://www.twitch.tv/dreadztv",
+          "label" : "DreadzTV"
+        },
+        {
+          "label" : "YouTube",
+          "key" : "y",
+          "type" : "command",
+          "value" : "open https://www.youtube.com/feed/subscriptions"
         }
       ]
     },
     {
-      "type" : "group",
-      "key" : "f",
-      "actions" : [
-        {
-          "type" : "url",
-          "label" : "NS",
-          "value" : "https://www.twitch.tv/just_ns",
-          "key" : "j"
-        },
-        {
-          "type" : "url",
-          "key" : "d",
-          "label" : "DreadzTV",
-          "value" : "https://www.twitch.tv/dreadztv"
-        },
-        {
-          "type" : "url",
-          "key" : "y",
-          "label" : "YouTube",
-          "value" : "https://www.youtube.com/feed/subscriptions"
-        }
-      ],
-      "label" : "Fun"
-    },
-    {
-      "type" : "group",
+      "key" : "d",
       "label" : "Develop",
       "actions" : [
         {
+          "label" : "[fab] GitLab",
+          "type" : "url",
           "key" : "g",
-          "type" : "url",
-          "value" : "https://git.fabrique.studio",
-          "label" : "[fab] GitLab"
+          "value" : "https://git.fabrique.studio"
         },
         {
+          "type" : "url",
           "value" : "https://youtrack.fabrique.studio",
-          "type" : "url",
-          "key" : "t",
-          "label" : "[fab] YouTrack"
+          "label" : "[fab] YouTrack",
+          "key" : "t"
         },
         {
-          "label" : "[fab] My MRs",
           "type" : "url",
+          "key" : "r",
           "value" : "raycast://extensions/tonka3000/gitlab/mr_my",
-          "key" : "r"
+          "label" : "[fab] My MRs"
         },
         {
           "label" : "",
-          "key" : "v",
+          "type" : "application",
           "value" : "/Applications/Cursor.app",
-          "type" : "application"
+          "key" : "v"
         }
       ],
-      "key" : "d"
+      "type" : "group"
     },
     {
+      "key" : "t",
       "type" : "group",
       "actions" : [
         {
-          "key" : "s",
           "value" : "raycast://extensions/raycast/snippets/search-snippets",
+          "key" : "s",
           "type" : "url",
           "label" : "Snippets"
         },
         {
-          "value" : "raycast://extensions/raycast/system/toggle-system-appearance",
+          "key" : "b",
           "type" : "url",
-          "label" : "Color theme",
-          "key" : "b"
+          "value" : "raycast://extensions/raycast/system/toggle-system-appearance",
+          "label" : "Color theme"
         }
       ],
-      "label" : "Tools",
-      "key" : "t"
+      "label" : "Tools"
     },
     {
+      "type" : "group",
+      "label" : "Windows",
+      "key" : "w",
       "actions" : [
         {
           "type" : "url",
-          "key" : "s",
+          "label" : "Switch",
           "value" : "btt://execute_assigned_actions_for_trigger/?uuid=0D905CF6-A3DD-47C0-ACB8-102AD10029EB",
-          "label" : "Switch"
+          "key" : "s"
         },
         {
-          "value" : "btt://execute_assigned_actions_for_trigger/?uuid=16F1F51E-06E1-4FF6-8E42-C461C47058F5",
-          "label" : "Full",
           "key" : "f",
-          "type" : "url"
+          "type" : "url",
+          "label" : "Full",
+          "value" : "btt://execute_assigned_actions_for_trigger/?uuid=16F1F51E-06E1-4FF6-8E42-C461C47058F5"
         },
         {
-          "value" : "btt://execute_assigned_actions_for_trigger/?uuid=F343317E-ECD6-47BD-B0F2-262E212102C5",
+          "type" : "url",
           "label" : "Right half",
-          "key" : "g",
-          "type" : "url"
+          "value" : "btt://execute_assigned_actions_for_trigger/?uuid=F343317E-ECD6-47BD-B0F2-262E212102C5",
+          "key" : "g"
         },
         {
+          "type" : "url",
           "value" : "btt://execute_assigned_actions_for_trigger/?uuid=E061BCA7-B95F-4DCC-9DF2-1FF376A7DA96",
           "label" : "Left half",
-          "key" : "d",
-          "type" : "url"
+          "key" : "d"
         },
         {
           "value" : "btt://execute_assigned_actions_for_trigger/?uuid=A4BF9A2F-7EF3-4E8E-94A3-9080B74B42C3",
-          "label" : "Upper half",
           "key" : "r",
-          "type" : "url"
+          "type" : "url",
+          "label" : "Upper half"
         },
         {
-          "value" : "btt://execute_assigned_actions_for_trigger/?uuid=E01AA8D0-9911-4458-BBC8-DFBC08149A88",
           "label" : "Lower half",
+          "value" : "btt://execute_assigned_actions_for_trigger/?uuid=E01AA8D0-9911-4458-BBC8-DFBC08149A88",
           "key" : "v",
           "type" : "url"
         },
         {
-          "value" : "btt://execute_assigned_actions_for_trigger/?uuid=22A2A1A2-F474-4A83-819C-3F3374F0CE9E",
-          "label" : "Notifications",
           "key" : "t",
-          "type" : "url"
+          "label" : "Notifications",
+          "type" : "url",
+          "value" : "btt://execute_assigned_actions_for_trigger/?uuid=22A2A1A2-F474-4A83-819C-3F3374F0CE9E"
         }
-      ],
-      "type" : "group",
-      "key" : "w",
-      "label" : "Windows"
+      ]
     }
-  ]
+  ],
+  "label" : "Leader Key",
+  "type" : "group"
 }
