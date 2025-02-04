@@ -187,7 +187,7 @@
           "key" : "b",
           "type" : "url",
           "value" : "raycast://extensions/raycast/system/toggle-system-appearance",
-          "label" : "Color theme"
+          "label" : "Toggle theme"
         }
       ],
       "label" : "Tools"
