@@ -172,10 +172,11 @@
 
         {:des "Internal keyboard" :rules [
             :mac-keys
+            [:##caps_lock :!QWEright_shift nil {:alone :!Sf12}]
 
             ;; HYPER keys
             ;; [:!Pspacebar :!!spacebar]
-            [:##caps_lock :!QWEright_shift]
+
             ;; [:##caps_lock :f20]
             ;; [:##caps_lock nil nil {
             ;;     :alone {:key :caps_lock :halt true}
