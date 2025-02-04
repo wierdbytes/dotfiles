@@ -3,3 +3,6 @@
 LEADER_KEY_CONFIG_DIR="{{ .chezmoi.homeDir }}/.config/leader-key"
 
 defaults write com.brnbw.Leader-Key configDir -string "$LEADER_KEY_CONFIG_DIR"
+defaults write com.brnbw.Leader-Key forceEnglishKeyboardLayout -bool true
+defaults write com.brnbw.Leader-Key alwaysShowCheatsheet -bool true
+defaults write com.brnbw.Leader-Key expandGroupsInCheatsheet -bool false
