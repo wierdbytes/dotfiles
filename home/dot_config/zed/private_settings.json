@@ -7,13 +7,33 @@
 // custom settings, run the `open default settings` command
 // from the command palette or from `Zed` application menu.
 {
+  "show_inline_completions": true,
   "features": {
     "inline_completion_provider": "supermaven"
   },
+  "language_models": {
+    "anthropic": {
+      "version": "1",
+      "available_models": [
+        {
+          "name": "claude-3-5-sonnet-latest",
+          "display_name": "Sonnet 3.5 latest",
+          "max_tokens": 200000,
+          "max_output_tokens": 5000,
+          "cache_configuration": {
+            "max_cache_anchors": 10,
+            "min_total_token": 10000,
+            "should_speculate": false
+          }
+          // "tool_override": "some-model-that-supports-toolcalling"
+        }
+      ]
+    }
+  },
   "assistant": {
     "default_model": {
-      "provider": "zed.dev",
-      "model": "claude-3-5-sonnet-20240620"
+      "provider": "anthropic",
+      "model": "claude-3-5-sonnet-latest"
     },
     "version": "2"
   },
