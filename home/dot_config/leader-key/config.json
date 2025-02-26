@@ -1,247 +1,253 @@
 {
+  "label" : "Leader Key",
   "actions" : [
     {
+      "key" : "a",
       "type" : "group",
+      "label" : "Apps",
       "actions" : [
         {
           "label" : "",
-          "type" : "application",
+          "key" : "z",
           "value" : "/Applications/zoom.us.app",
-          "key" : "z"
+          "type" : "application"
         },
         {
+          "key" : "b",
           "type" : "application",
           "value" : "/Applications/Arc.app",
-          "key" : "b",
           "label" : "Browser"
         },
         {
-          "type" : "application",
-          "key" : "e",
+          "value" : "/System/Applications/Mail.app",
           "label" : "Email",
-          "value" : "/System/Applications/Mail.app"
+          "type" : "application",
+          "key" : "e"
         },
         {
           "type" : "application",
-          "key" : "m",
           "value" : "/System/Applications/Music.app",
+          "key" : "m",
           "label" : ""
         },
         {
-          "value" : "/System/Library/CoreServices/Finder.app",
           "key" : "f",
-          "type" : "application",
-          "label" : ""
+          "label" : "",
+          "value" : "/System/Library/CoreServices/Finder.app",
+          "type" : "application"
         },
         {
-          "key" : "d",
-          "type" : "application",
           "value" : "/Applications/Telegram.app",
-          "label" : ""
-        },
-        {
-          "value" : "/System/Applications/Calendar.app",
-          "type" : "application",
-          "key" : "c",
-          "label" : ""
+          "label" : "",
+          "key" : "d",
+          "type" : "application"
         },
         {
           "label" : "",
+          "key" : "c",
+          "value" : "/System/Applications/Calendar.app",
+          "type" : "application"
+        },
+        {
+          "type" : "application",
           "value" : "/Applications/Cursor.app",
           "key" : "v",
-          "type" : "application"
+          "label" : ""
         },
         {
-          "label" : "",
-          "value" : "/Applications/Obsidian.app",
           "key" : "o",
-          "type" : "application"
-        },
-        {
           "type" : "application",
           "label" : "",
+          "value" : "/Applications/Obsidian.app"
+        },
+        {
+          "label" : "",
           "value" : "/Applications/Figma.app",
+          "type" : "application",
           "key" : "g"
         },
         {
-          "label" : "",
+          "value" : "/Applications/Alacritty.app",
           "key" : "t",
           "type" : "application",
-          "value" : "/Applications/Alacritty.app"
-        }
-      ],
-      "key" : "a",
-      "label" : "Apps"
-    },
-    {
-      "type" : "group",
-      "actions" : [
-        {
-          "key" : "r",
-          "type" : "application",
-          "value" : "/Applications/Audio Hijack.app",
           "label" : ""
         },
         {
+          "type" : "application",
+          "key" : "w",
+          "label" : "",
+          "value" : "/Applications/Windows App.app"
+        }
+      ]
+    },
+    {
+      "actions" : [
+        {
+          "value" : "/Applications/Audio Hijack.app",
+          "key" : "r",
+          "label" : "",
+          "type" : "application"
+        },
+        {
+          "key" : "s",
+          "label" : "CleanShot X",
+          "type" : "group",
           "actions" : [
             {
-              "value" : "cleanshot://all-in-one",
-              "key" : "q",
               "type" : "url",
-              "label" : "All-in-One"
+              "key" : "q",
+              "label" : "All-in-One",
+              "value" : "cleanshot://all-in-one"
             },
             {
-              "key" : "a",
-              "value" : "cleanshot://capture-area",
               "label" : "Capture Area",
+              "value" : "cleanshot://capture-area",
+              "key" : "a",
               "type" : "url"
             },
             {
-              "key" : "h",
-              "type" : "url",
               "label" : "History",
-              "value" : "cleanshot://open-history"
+              "key" : "h",
+              "value" : "cleanshot://open-history",
+              "type" : "url"
             },
             {
-              "key" : "r",
+              "label" : "Recently closed",
               "type" : "url",
-              "value" : "cleanshot://restore-recently-closed",
-              "label" : "Recently closed"
+              "key" : "r",
+              "value" : "cleanshot://restore-recently-closed"
             }
-          ],
-          "key" : "s",
-          "label" : "CleanShot X",
-          "type" : "group"
+          ]
         }
       ],
+      "label" : "Record",
       "key" : "r",
-      "label" : "Record"
-    },
-    {
-      "key" : "f",
-      "label" : "Fun",
-      "type" : "group",
-      "actions" : [
-        {
-          "value" : "open https://www.twitch.tv/just_ns",
-          "key" : "j",
-          "type" : "command",
-          "label" : "NS"
-        },
-        {
-          "key" : "d",
-          "type" : "command",
-          "value" : "open https://www.twitch.tv/dreadztv",
-          "label" : "DreadzTV"
-        },
-        {
-          "label" : "YouTube",
-          "key" : "y",
-          "type" : "command",
-          "value" : "open https://www.youtube.com/feed/subscriptions"
-        }
-      ]
-    },
-    {
-      "key" : "d",
-      "label" : "Develop",
-      "actions" : [
-        {
-          "label" : "[fab] GitLab",
-          "type" : "url",
-          "key" : "g",
-          "value" : "https://git.fabrique.studio"
-        },
-        {
-          "type" : "url",
-          "value" : "https://youtrack.fabrique.studio",
-          "label" : "[fab] YouTrack",
-          "key" : "t"
-        },
-        {
-          "type" : "url",
-          "key" : "r",
-          "value" : "raycast://extensions/tonka3000/gitlab/mr_my",
-          "label" : "[fab] My MRs"
-        },
-        {
-          "label" : "",
-          "type" : "application",
-          "value" : "/Applications/Cursor.app",
-          "key" : "v"
-        }
-      ],
       "type" : "group"
     },
     {
-      "key" : "t",
       "type" : "group",
+      "key" : "f",
       "actions" : [
         {
-          "value" : "raycast://extensions/raycast/snippets/search-snippets",
-          "key" : "s",
-          "type" : "url",
-          "label" : "Snippets"
+          "label" : "NS",
+          "value" : "open https://www.twitch.tv/just_ns",
+          "type" : "command",
+          "key" : "j"
         },
         {
-          "key" : "b",
-          "type" : "url",
-          "value" : "raycast://extensions/raycast/system/toggle-system-appearance",
-          "label" : "Toggle theme"
+          "value" : "open https://www.twitch.tv/dreadztv",
+          "key" : "d",
+          "type" : "command",
+          "label" : "DreadzTV"
+        },
+        {
+          "type" : "command",
+          "key" : "y",
+          "label" : "YouTube",
+          "value" : "open https://www.youtube.com/feed/subscriptions"
         }
       ],
-      "label" : "Tools"
+      "label" : "Fun"
     },
     {
       "type" : "group",
-      "label" : "Windows",
-      "key" : "w",
+      "label" : "Develop",
+      "key" : "d",
       "actions" : [
         {
+          "value" : "https://git.fabrique.studio",
           "type" : "url",
-          "label" : "Switch",
-          "value" : "btt://execute_assigned_actions_for_trigger/?uuid=0D905CF6-A3DD-47C0-ACB8-102AD10029EB",
-          "key" : "s"
-        },
-        {
-          "key" : "f",
-          "type" : "url",
-          "label" : "Full",
-          "value" : "btt://execute_assigned_actions_for_trigger/?uuid=16F1F51E-06E1-4FF6-8E42-C461C47058F5"
-        },
-        {
-          "type" : "url",
-          "label" : "Right half",
-          "value" : "btt://execute_assigned_actions_for_trigger/?uuid=F343317E-ECD6-47BD-B0F2-262E212102C5",
+          "label" : "[fab] GitLab",
           "key" : "g"
         },
         {
+          "label" : "[fab] YouTrack",
+          "value" : "https://youtrack.fabrique.studio",
           "type" : "url",
-          "value" : "btt://execute_assigned_actions_for_trigger/?uuid=E061BCA7-B95F-4DCC-9DF2-1FF376A7DA96",
-          "label" : "Left half",
-          "key" : "d"
+          "key" : "t"
         },
         {
-          "value" : "btt://execute_assigned_actions_for_trigger/?uuid=A4BF9A2F-7EF3-4E8E-94A3-9080B74B42C3",
+          "label" : "[fab] My MRs",
           "key" : "r",
           "type" : "url",
-          "label" : "Upper half"
+          "value" : "raycast://extensions/tonka3000/gitlab/mr_my"
         },
         {
-          "label" : "Lower half",
-          "value" : "btt://execute_assigned_actions_for_trigger/?uuid=E01AA8D0-9911-4458-BBC8-DFBC08149A88",
+          "type" : "application",
+          "value" : "/Applications/Cursor.app",
           "key" : "v",
+          "label" : ""
+        }
+      ]
+    },
+    {
+      "actions" : [
+        {
+          "key" : "s",
+          "label" : "Snippets",
+          "value" : "raycast://extensions/raycast/snippets/search-snippets",
           "type" : "url"
         },
         {
-          "key" : "t",
-          "label" : "Notifications",
+          "label" : "Toggle theme",
           "type" : "url",
-          "value" : "btt://execute_assigned_actions_for_trigger/?uuid=22A2A1A2-F474-4A83-819C-3F3374F0CE9E"
+          "value" : "raycast://extensions/raycast/system/toggle-system-appearance",
+          "key" : "b"
         }
-      ]
+      ],
+      "type" : "group",
+      "label" : "Tools",
+      "key" : "t"
+    },
+    {
+      "type" : "group",
+      "actions" : [
+        {
+          "label" : "Switch",
+          "key" : "s",
+          "value" : "btt://execute_assigned_actions_for_trigger/?uuid=0D905CF6-A3DD-47C0-ACB8-102AD10029EB",
+          "type" : "url"
+        },
+        {
+          "label" : "Full",
+          "key" : "f",
+          "type" : "url",
+          "value" : "btt://execute_assigned_actions_for_trigger/?uuid=16F1F51E-06E1-4FF6-8E42-C461C47058F5"
+        },
+        {
+          "value" : "btt://execute_assigned_actions_for_trigger/?uuid=F343317E-ECD6-47BD-B0F2-262E212102C5",
+          "type" : "url",
+          "key" : "g",
+          "label" : "Right half"
+        },
+        {
+          "key" : "d",
+          "type" : "url",
+          "label" : "Left half",
+          "value" : "btt://execute_assigned_actions_for_trigger/?uuid=E061BCA7-B95F-4DCC-9DF2-1FF376A7DA96"
+        },
+        {
+          "label" : "Upper half",
+          "type" : "url",
+          "value" : "btt://execute_assigned_actions_for_trigger/?uuid=A4BF9A2F-7EF3-4E8E-94A3-9080B74B42C3",
+          "key" : "r"
+        },
+        {
+          "label" : "Lower half",
+          "key" : "v",
+          "value" : "btt://execute_assigned_actions_for_trigger/?uuid=E01AA8D0-9911-4458-BBC8-DFBC08149A88",
+          "type" : "url"
+        },
+        {
+          "type" : "url",
+          "key" : "t",
+          "value" : "btt://execute_assigned_actions_for_trigger/?uuid=22A2A1A2-F474-4A83-819C-3F3374F0CE9E",
+          "label" : "Notifications"
+        }
+      ],
+      "label" : "Windows",
+      "key" : "w"
     }
   ],
-  "label" : "Leader Key",
   "type" : "group"
 }
