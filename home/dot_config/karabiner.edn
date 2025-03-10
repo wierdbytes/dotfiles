@@ -198,7 +198,13 @@
                         ]}}
                 ;; [:caps_lock "sketchybar --trigger kb-layout-change"]
                 ;; [:caps_lock [:sbar "kb-layout-change"]]
-                [:fn [:sbar "kb-layout-change"]]
+                [:caps_lock [:sbar "kb-layout-change"]]
+                nil
+                {:params {:sim 30}}
+                ]
+            [
+                :caps_lock
+                [:caps_lock [:sbar "kb-layout-change"]]
                 nil
                 {:params {:sim 30}}
                 ]
