@@ -59,11 +59,11 @@
     :main [
 
         {:des "Num Layers" :rules [
-                [:9 {:set ["9L" 1] :lazy true} nil {
-                    :alone {:key :9}
-                    :afterup ["9L" 0]
-                    :params {:alone 99 :held 100 :delay 100}
-                }]
+                ;; [:9 {:set ["9L" 1] :lazy true} nil {
+                ;;     :alone {:key :9}
+                ;;     :afterup ["9L" 0]
+                ;;     :params {:alone 99 :held 100 :delay 100}
+                ;; }]
             ]}
 
         {:des "1L keys (F-keys)" :rules [
@@ -188,50 +188,50 @@
         {:des "Utility (Enter/Tab/Caps/...)" :rules [
             [:!Cf21 :!Cgrave_accent_and_tilde :zmk]     ;; CMD + `
             ;; [:!Tf21 :!Tgrave_accent_and_tilde]       ;; Control + `
-            [{:sim [:f :e] :modi {                      ;; CapsLock
-                    :optional [
-                        :left_command
-                        :left_shift
-                        :left_control
-                        :left_option
-                        :caps_lock
-                        ]}}
-                ;; [:caps_lock "sketchybar --trigger kb-layout-change"]
-                ;; [:caps_lock [:sbar "kb-layout-change"]]
-                [:caps_lock [:sbar "kb-layout-change"]]
-                nil
-                {:params {:sim 30}}
-                ]
+            ;; [{:sim [:f :g] :modi {                      ;; CapsLock
+            ;;         :optional [
+            ;;             :left_command
+            ;;             :left_shift
+            ;;             :left_control
+            ;;             :left_option
+            ;;             :caps_lock
+            ;;             ]}}
+            ;;     ;; [:caps_lock "sketchybar --trigger kb-layout-change"]
+            ;;     ;; [:caps_lock [:sbar "kb-layout-change"]]
+            ;;     [:caps_lock [:sbar "kb-layout-change"]]
+            ;;     nil
+            ;;     {:params {:sim 30}}
+            ;;     ]
             [
                 :caps_lock
                 [:caps_lock [:sbar "kb-layout-change"]]
                 nil
                 {:params {:sim 30}}
                 ]
-            [{:sim [:w :f] :modi {                      ;; Tab
-                    :optional [
-                        :left_command
-                        :left_shift
-                        :left_control
-                        :left_option
-                        :caps_lock
-                        ]}}
-                :tab
-                nil
-                {:params {:sim 50}}
-                ]
-            [{:sim [:j :i] :modi {                     ;; Enter
-                    :optional [
-                        :left_command
-                        :left_shift
-                        :left_control
-                        :left_option
-                        :caps_lock
-                        ]}}
-                :return_or_enter
-                nil
-                {:params {:sim 50}}
-                ]
+            ;; [{:sim [:w :f] :modi {                      ;; Tab
+            ;;         :optional [
+            ;;             :left_command
+            ;;             :left_shift
+            ;;             :left_control
+            ;;             :left_option
+            ;;             :caps_lock
+            ;;             ]}}
+            ;;     :tab
+            ;;     nil
+            ;;     {:params {:sim 50}}
+            ;;     ]
+            ;; [{:sim [:j :i] :modi {                     ;; Enter
+            ;;         :optional [
+            ;;             :left_command
+            ;;             :left_shift
+            ;;             :left_control
+            ;;             :left_option
+            ;;             :caps_lock
+            ;;             ]}}
+            ;;     :return_or_enter
+            ;;     nil
+            ;;     {:params {:sim 50}}
+            ;;     ]
             ]}
 
         {:des "M0 Layer" :rules [
@@ -405,58 +405,83 @@
 
           ]}
 
-        ;; yabai and window management
+        ;; system management (raycast and friends)
         {:des "M9 Layer" :rules [
             [:##f19 ["M9" 1] :zmk {:afterup ["M9" 0]}]
             [:##right_option ["M9" 1] :mac-keys {:afterup ["M9" 0]}]
 
             [:condi :M9]
 
-            ;; yabai toggle gaps
-            [:g "/opt/homebrew/bin/yabai -m space --toggle padding && /opt/homebrew/bin/yabai -m space --toggle gap"]
-            ;; toggle icons of stackline
-            [:r "/opt/homebrew/bin/hs -c \"stackline.config:toggle('appearance.showIcons')\""]
-            ;; toggle stack / bsp mode
-            [:b "/opt/homebrew/bin/yabai -m space --layout $(/opt/homebrew/bin/yabai -m query --spaces --space | /opt/homebrew/bin/jq -r 'if .type == \"bsp\" then \"stack\" else \"bsp\" end')"]
-            ;; toggle horizontal / vertical split
-            [:t "/opt/homebrew/bin/yabai -m window --toggle split"]
-            ;; move focus next / prev / left / right window
-            [:d "/opt/homebrew/bin/yabai -m window --focus stack.next || /opt/homebrew/bin/yabai -m window --focus south || /opt/homebrew/bin/yabai -m window --focus stack.first ; /opt/homebrew/bin/sketchybar --trigger window_focus"]
-            [:e "/opt/homebrew/bin/yabai -m window --focus stack.prev || /opt/homebrew/bin/yabai -m window --focus north || /opt/homebrew/bin/yabai -m window --focus stack.last ; /opt/homebrew/bin/sketchybar --trigger window_focus"]
-            [:s "/opt/homebrew/bin/yabai -m window --focus west ; /opt/homebrew/bin/sketchybar --trigger window_focus"]
-            [:f "/opt/homebrew/bin/yabai -m window --focus east ; /opt/homebrew/bin/sketchybar --trigger window_focus"]
-            ;; swap window next / prev / left / right
-            [:!Sd "/opt/homebrew/bin/yabai -m window --warp south ; /opt/homebrew/bin/sketchybar --trigger window_focus"]
-            [:!Se "/opt/homebrew/bin/yabai -m window --warp north ; /opt/homebrew/bin/sketchybar --trigger window_focus"]
-            [:!Ss "/opt/homebrew/bin/yabai -m window --warp west ; /opt/homebrew/bin/sketchybar --trigger window_focus"]
-            [:!Sf "/opt/homebrew/bin/yabai -m window --warp east ; /opt/homebrew/bin/sketchybar --trigger window_focus"]
-            ;; move window next / prev / left / right with stacking
-            [:!Cd "$HOME/.config/yabai-stack south ; sketchybar --trigger window_focus"]
-            [:!Ce "$HOME/.config/yabai-stack north ; sketchybar --trigger window_focus"]
-            [:!Cs "$HOME/.config/yabai-stack west ; sketchybar --trigger window_focus"]
-            [:!Cf "$HOME/.config/yabai-stack east ; sketchybar --trigger window_focus"]
-            ;; resize window
-            [:!Od "/opt/homebrew/bin/yabai -m window --resize bottom:0:19"]
-            [:!Oe "/opt/homebrew/bin/yabai -m window --resize bottom:0:-19"]
-            [:!Os "/opt/homebrew/bin/yabai -m window --resize right:-32:0"]
-            [:!Of "/opt/homebrew/bin/yabai -m window --resize right:32:0"]
+            [:b [:alfred "dark light toggle" "com.lisongcheng.daynight"]]
 
-            [:!Td "/opt/homebrew/bin/yabai -m window --move rel:0:19"]
-            [:!Te "/opt/homebrew/bin/yabai -m window --move rel:0:-19"]
-            [:!Ts "/opt/homebrew/bin/yabai -m window --move rel:-32:0"]
-            [:!Tf "/opt/homebrew/bin/yabai -m window --move rel:32:0"]
-            ;; balance out tree of windows (resize to occupy same area)
-            [:x "/opt/homebrew/bin/yabai -m space --balance"]
+            ;; [2 tap] Choose output audo device
+            [:a [ [:raycast "benvp/audio-device/set-output-device"] ["9La2T" 0] ] :9La2T ]
+            ;; [1 tap] Choose input audo device
+            [:a [ ["9La2T" 1] ] nil {
+                :delayed { :invoked  [["9La2T" 0] [:raycast "benvp/audio-device/set-input-device"]] :canceled ["9La2T" 0]}
+                :params {:delay 200 :alone 201}
+                }]
 
-            ;; toggle float / tile window
-            [:q "/opt/homebrew/bin/yabai -m window --toggle float"]
-            ;; toggle fullscreen
-            [:w "/opt/homebrew/bin/yabai -m window --toggle zoom-fullscreen"]
-            [:a "/opt/homebrew/bin/yabai -m window --toggle shadow"]
-            [:z "/opt/homebrew/bin/yabai -m window --toggle sticky"]
-            ;; reload/restart wm services
-            [:y "/opt/homebrew/bin/yabai --restart-service"]
-            [:u "/opt/homebrew/bin/sketchybar --reload"]
+            [:g [:raycast "tonka3000/gitlab/mr_my" ] ]
+            [:f [:raycast "tiulpin/youtrack/browse" ] ]
+
+            ;; 2 tap
+            [:v [ [:alfred "vpn: show all" "dk.rodalgaard.alfred.network"] ["9Lv2T" 0] ] :9Lv2T ]
+            ;; 1 tap
+            [:v [ ["9Lv2T" 1] ] nil {
+                :delayed { :invoked  [["9Lv2T" 0] [:alfred "vpn: toggle fab" "dk.rodalgaard.alfred.network"]] :canceled ["9Lv2T" 0]}
+                :params {:delay 200 :alone 201}
+                }]
+
+            [:z [:raycast "ewgenius/zed-recent-projects/search" ] ]
+            [:c [:raycast "thomas/visual-studio-code/index" ] ]
+            [:x [:raycast "gdsmith/jetbrains/recent" ] ]
+
+        ;;     ;; yabai toggle gaps
+        ;;     [:g "/opt/homebrew/bin/yabai -m space --toggle padding && /opt/homebrew/bin/yabai -m space --toggle gap"]
+        ;;     ;; toggle icons of stackline
+        ;;     [:r "/opt/homebrew/bin/hs -c \"stackline.config:toggle('appearance.showIcons')\""]
+        ;;     ;; toggle stack / bsp mode
+        ;;     [:b "/opt/homebrew/bin/yabai -m space --layout $(/opt/homebrew/bin/yabai -m query --spaces --space | /opt/homebrew/bin/jq -r 'if .type == \"bsp\" then \"stack\" else \"bsp\" end')"]
+        ;;     ;; toggle horizontal / vertical split
+        ;;     [:t "/opt/homebrew/bin/yabai -m window --toggle split"]
+        ;;     ;; move focus next / prev / left / right window
+        ;;     [:d "/opt/homebrew/bin/yabai -m window --focus stack.next || /opt/homebrew/bin/yabai -m window --focus south || /opt/homebrew/bin/yabai -m window --focus stack.first ; /opt/homebrew/bin/sketchybar --trigger window_focus"]
+        ;;     [:e "/opt/homebrew/bin/yabai -m window --focus stack.prev || /opt/homebrew/bin/yabai -m window --focus north || /opt/homebrew/bin/yabai -m window --focus stack.last ; /opt/homebrew/bin/sketchybar --trigger window_focus"]
+        ;;     [:s "/opt/homebrew/bin/yabai -m window --focus west ; /opt/homebrew/bin/sketchybar --trigger window_focus"]
+        ;;     [:f "/opt/homebrew/bin/yabai -m window --focus east ; /opt/homebrew/bin/sketchybar --trigger window_focus"]
+        ;;     ;; swap window next / prev / left / right
+        ;;     [:!Sd "/opt/homebrew/bin/yabai -m window --warp south ; /opt/homebrew/bin/sketchybar --trigger window_focus"]
+        ;;     [:!Se "/opt/homebrew/bin/yabai -m window --warp north ; /opt/homebrew/bin/sketchybar --trigger window_focus"]
+        ;;     [:!Ss "/opt/homebrew/bin/yabai -m window --warp west ; /opt/homebrew/bin/sketchybar --trigger window_focus"]
+        ;;     [:!Sf "/opt/homebrew/bin/yabai -m window --warp east ; /opt/homebrew/bin/sketchybar --trigger window_focus"]
+        ;;     ;; move window next / prev / left / right with stacking
+        ;;     [:!Cd "$HOME/.config/yabai-stack south ; sketchybar --trigger window_focus"]
+        ;;     [:!Ce "$HOME/.config/yabai-stack north ; sketchybar --trigger window_focus"]
+        ;;     [:!Cs "$HOME/.config/yabai-stack west ; sketchybar --trigger window_focus"]
+        ;;     [:!Cf "$HOME/.config/yabai-stack east ; sketchybar --trigger window_focus"]
+        ;;     ;; resize window
+        ;;     [:!Od "/opt/homebrew/bin/yabai -m window --resize bottom:0:19"]
+        ;;     [:!Oe "/opt/homebrew/bin/yabai -m window --resize bottom:0:-19"]
+        ;;     [:!Os "/opt/homebrew/bin/yabai -m window --resize right:-32:0"]
+        ;;     [:!Of "/opt/homebrew/bin/yabai -m window --resize right:32:0"]
+
+        ;;     [:!Td "/opt/homebrew/bin/yabai -m window --move rel:0:19"]
+        ;;     [:!Te "/opt/homebrew/bin/yabai -m window --move rel:0:-19"]
+        ;;     [:!Ts "/opt/homebrew/bin/yabai -m window --move rel:-32:0"]
+        ;;     [:!Tf "/opt/homebrew/bin/yabai -m window --move rel:32:0"]
+        ;;     ;; balance out tree of windows (resize to occupy same area)
+        ;;     [:x "/opt/homebrew/bin/yabai -m space --balance"]
+
+        ;;     ;; toggle float / tile window
+        ;;     [:q "/opt/homebrew/bin/yabai -m window --toggle float"]
+        ;;     ;; toggle fullscreen
+        ;;     [:w "/opt/homebrew/bin/yabai -m window --toggle zoom-fullscreen"]
+        ;;     [:a "/opt/homebrew/bin/yabai -m window --toggle shadow"]
+        ;;     [:z "/opt/homebrew/bin/yabai -m window --toggle sticky"]
+        ;;     ;; reload/restart wm services
+        ;;     [:y "/opt/homebrew/bin/yabai --restart-service"]
+        ;;     [:u "/opt/homebrew/bin/sketchybar --reload"]
             ]}
 
         {:des "M2 Layer" :rules [
@@ -542,13 +567,13 @@
             [:!Sgrave_accent_and_tilde :!Om :ru]
             [:grave_accent_and_tilde :!OS0 :ru]
 
-            :zmk
-            [:#Sf23 ["M3" 1] nil {:afterup ["M3" 0]}]
+            [:#Sf23 ["M3" 1] :zmk {:afterup ["M3" 0]}]
+            [:##right_command ["M3" 1] :mac-keys {:afterup ["M3" 0]}]
 
             [:condi :M3]
 
             ;; Ctrl+b
-            [:e :!Tb]
+            ;; [:e :!Tb]
 
             ;; ъ
             [:#Sq :close_bracket [:ru]]
