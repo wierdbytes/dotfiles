@@ -7,8 +7,13 @@ stackline.config:toggle('appearance.showIcons')
 -- Switch alacritty (from https://gist.github.com/truebit/31396bb2f48c75285d724c9e9e037bcd)
 local spaces = require("hs.spaces") -- https://github.com/asmagill/hs._asm.spaces
 
+local APP_NAME = 'Ghostty'
+-- local APP_NAME = 'Alacritty'
+local BUNDLE_ID = 'com.mitchellh.ghostty'
+-- local BUNDLE_ID = 'org.alacritty'
+
 FocusWatcher = hs.application.watcher.new(function(appName, eventType, appObject)
-  if eventType == hs.application.watcher.deactivated and appName == 'Alacritty' then
+  if eventType == hs.application.watcher.deactivated and appName == APP_NAME then
     print('appName= ' .. appName .. ', eventType= ' .. eventType)
     appObject:hide()
   end
@@ -16,7 +21,6 @@ end)
 FocusWatcher:start()
 
 hs.hotkey.bind({ "cmd", "alt", "ctrl", "shift" }, 'T', function()
-  local BUNDLE_ID = 'org.alacritty' -- more accurate to avoid mismatching on browser titles
   function moveWindow(alacritty, space, mainScreen)
     -- move to main space
     local win = nil
