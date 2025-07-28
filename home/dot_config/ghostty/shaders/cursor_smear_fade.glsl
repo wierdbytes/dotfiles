@@ -60,8 +60,10 @@ float ease(float x) {
     return pow(1.0 - x, 3.0);
 }
 
-const vec4 TRAIL_COLOR = vec4(1., 1., 0., 1.0);
+//const vec4 TRAIL_COLOR = vec4(1., 1., 0., 1.0);
+const vec4 TRAIL_COLOR = vec4(0.482, 0.886, 1.0, 1.0);
 const float DURATION = 0.5; //IN SECONDS
+const float OPACITY = 0.75;
 
 void mainImage(out vec4 fragColor, in vec2 fragCoord)
 {
@@ -103,10 +105,12 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
     float fadeFactor = 1.0 - smoothstep(lineLength, sdfCurrentCursor, easedProgress * lineLength);
 
     // Apply fading effect to trail color
-    vec4 fadedTrailColor = TRAIL_COLOR * fadeFactor;
+    vec4 fadedTrailColor = vec4(TRAIL_COLOR.rgb, TRAIL_COLOR.a * fadeFactor * OPACITY);
 
     // Blend trail with fade effect
-    newColor = mix(newColor, fadedTrailColor, antialising(sdfTrail));
+    float trailMask = antialising(sdfTrail);
+    newColor.rgb = mix(newColor.rgb, fadedTrailColor.rgb, fadedTrailColor.a * trailMask);
+    newColor.a = max(newColor.a, fadedTrailColor.a * trailMask);
     // Draw current cursor
     newColor = mix(newColor, TRAIL_COLOR, antialising(sdfCurrentCursor));
     newColor = mix(newColor, fragColor, step(sdfCurrentCursor, 0.));
