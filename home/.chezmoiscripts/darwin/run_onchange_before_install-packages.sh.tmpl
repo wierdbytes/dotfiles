@@ -26,6 +26,7 @@ set -eufo pipefail
 {{ $casks := list
      "leader-key"
      "raycast"
+     "ghostty@tip"
      "karabiner-elements"
      "sf-symbols"
      "homebrew/cask-fonts/font-sf-mono"
@@ -39,7 +40,7 @@ set -eufo pipefail
 brew tap "{{ . }}"
 {{ end -}}
 
-brew bundle --no-lock --file=/dev/stdin <<EOF
+brew bundle --file=/dev/stdin <<EOF
 {{ range ($brews | sortAlpha | uniq) -}}
 brew "{{ . }}"
 {{ end -}}
