@@ -6,11 +6,9 @@ format = """
 $os\
 $username\
 $hostname\
-[](fg:color_group1)\
-[](fg:color_group2)\
+[](fg:color_group1 bg:color_group2)\
 $directory\
-[](fg:color_group2)\
-[](fg:color_group3)\
+[](fg:color_group2 bg:color_group3)\
 $git_branch\
 $git_status\
 [](fg:color_group3 bg:color_group4)\
@@ -26,8 +24,7 @@ $python\
 [](fg:color_group4 bg:color_group5)\
 $docker_context\
 $conda\
-[](fg:color_group5)\
-[](fg:color_group6)\
+[](fg:color_group5 bg:color_group6)\
 $cmd_duration\
 $time\
 [ ](fg:color_group6)\
