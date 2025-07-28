@@ -8,7 +8,7 @@ font-thicken-strength = 200
 #cursor-style = block_hollow
 cursor-style = block
 cursor-style-blink = false
-cursor-invert-fg-bg = true
+#cursor-invert-fg-bg = true
 #cursor-opacity = 0.5
 
 window-colorspace = display-p3
