@@ -5,7 +5,7 @@ keybind = cmd+e=reset_font_size
 #font-family = "MesloLGS Nerd Font Mono"
 font-size = 18
 font-thicken = true
-font-thicken-strength = 255
+font-thicken-strength = 128
 
 cursor-style = block
 cursor-style-blink = false
