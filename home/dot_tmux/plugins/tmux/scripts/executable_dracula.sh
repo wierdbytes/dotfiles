@@ -49,6 +49,7 @@ main()
 
   # Catppucchin Color Pallette
   white='#cad3f5'           # Text
+  subtext_0='#a5adcb'       # Subtext 0
   gray='#24273a'            # Base
   dark_gray='#181926'       # Crust
   light_purple='#c6a0f6'    # Mauve
@@ -129,7 +130,7 @@ main()
   else
     tmux set-option -g pane-active-border-style "fg=${dark_purple}"
   fi
-  tmux set-option -g pane-border-style "fg=${gray}"
+  tmux set-option -g pane-border-style "fg=${subtext_0}"
 
   # message styling
   tmux set-option -g message-style "bg=${gray},fg=${white}"
