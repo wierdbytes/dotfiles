@@ -49,6 +49,9 @@ keyboard:subscribe({ "kb-layout-change" }, function(env)
     end)
 end)
 
+local zen = require("zen")
+zen.handler(keyboard)
+
 -- sbar.add("bracket", "widgets.keyboard.bracket", { keyboard.name }, {
 --   background = { color = colors.bg1 }
 -- })

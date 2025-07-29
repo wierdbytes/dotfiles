@@ -3,7 +3,8 @@ local colors = require("colors")
 
 local whitelist = { ["Spotify"] = true,
                     ["Music"] = true,
-                    ["Brave Browser"] = true,    };
+                    ["Safari"] = true,
+                    ["Arc"] = true,    };
 
 local playing = false
 

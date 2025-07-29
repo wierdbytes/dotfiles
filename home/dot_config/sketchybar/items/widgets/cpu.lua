@@ -57,6 +57,9 @@ cpu:subscribe("mouse.clicked", function(env)
   sbar.exec("open -a 'Activity Monitor'")
 end)
 
+local zen = require("zen")
+zen.handler(cpu)
+
 -- -- Background around the cpu item
 -- sbar.add("bracket", "widgets.cpu.bracket", { cpu.name }, {
 --   background = { color = colors.bg1 }

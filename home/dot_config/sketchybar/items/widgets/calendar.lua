@@ -119,3 +119,6 @@ end)
 cal:subscribe("mouse.clicked", function(env)
   notified = not notified
 end)
+
+local zen = require("zen")
+zen.handler(cal)

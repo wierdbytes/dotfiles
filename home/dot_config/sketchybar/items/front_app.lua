@@ -35,7 +35,7 @@ local function end_animation(env)
 end
 
 local function start_animation(env)
-  sbar.animate("tanh", 5, function()
+  sbar.animate("tanh", 0, function()
     front_app:set({
       y_offset = 24,
       label = {

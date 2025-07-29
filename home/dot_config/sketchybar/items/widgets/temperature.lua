@@ -53,6 +53,9 @@ update()
 
 therm:subscribe("routine", update)
 
+local zen = require("zen")
+zen.handler(therm)
+
 -- sbar.add("bracket", "widgets.temperature.bracket", { therm.name }, {
 --   background = { color = colors.bg1 }
 -- })

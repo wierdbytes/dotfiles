@@ -121,3 +121,8 @@ wifi_up:subscribe("netstat_update", function(env)
 end)
 
 wifi:subscribe({ "wifi_change", "system_woke" }, wifi_change)
+
+local zen = require("zen")
+zen.handler(wifi)
+zen.handler(wifi_up)
+zen.handler(wifi_down)

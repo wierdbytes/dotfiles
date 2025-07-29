@@ -91,6 +91,9 @@ battery:subscribe("mouse.exited", function(env)
   battery:set({ popup = { drawing = false } })
 end)
 
+local zen = require("zen")
+zen.handler(battery)
+
 -- sbar.add("bracket", "widgets.battery.bracket", { battery.name }, {
 --   background = { color = colors.bg1 }
 -- })

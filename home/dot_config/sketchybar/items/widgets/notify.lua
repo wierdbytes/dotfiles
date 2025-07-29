@@ -63,3 +63,7 @@ notify_tg:subscribe({ "forced", "routine", "system_woke" }, function(env)
       end
     end)
 end)
+
+local zen = require("zen")
+zen.handler(notify_mail)
+zen.handler(notify_tg)
