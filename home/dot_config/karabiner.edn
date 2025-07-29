@@ -433,6 +433,8 @@
                 :params {:delay 200 :alone 201}
                 }]
 
+            [:r [:sbar "toggle_zen_mode" ] ]
+
             [:z [:raycast "ewgenius/zed-recent-projects/search" ] ]
             [:c [:raycast "thomas/visual-studio-code/index" ] ]
             [:x [:raycast "gdsmith/jetbrains/recent" ] ]
