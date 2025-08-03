@@ -3,6 +3,7 @@ theme = catppuccin-macchiato
 keybind = global:cmd+shift+ctrl+t=toggle_quick_terminal
 keybind = cmd+r=set_font_size:30
 keybind = cmd+e=reset_font_size
+keybind = cmd+enter=toggle_fullscreen
 #font-family = "MesloLGS Nerd Font Mono"
 font-size = 18
 font-thicken = true
@@ -15,15 +16,17 @@ cursor-style-blink = false
 
 window-colorspace = display-p3
 window-inherit-font-size = false
-background-opacity = 0.80
+background-opacity = 0.90
 background-blur = true
 
 macos-titlebar-style = hidden
+macos-non-native-fullscreen = true
 window-save-state = always
 window-padding-color = extend
 window-step-resize = false
 window-padding-y = 0
 window-padding-balance = true
+resize-overlay = never
 
 #custom-shader = ./shaders/tft.glsl
 #custom-shader = ./shaders/bettercrt.glsl
