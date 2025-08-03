@@ -8,19 +8,26 @@ hs.ipc.cliInstall("/opt/homebrew")
 local spaces = require("hs.spaces") -- https://github.com/asmagill/hs._asm.spaces
 
 local APP_NAME = "Ghostty"
--- local APP_NAME = 'Alacritty'
 local BUNDLE_ID = "com.mitchellh.ghostty"
--- local BUNDLE_ID = 'org.alacritty'
 
 FocusWatcher = hs.application.watcher.new(function(appName, eventType, appObject)
 	if eventType == hs.application.watcher.deactivated and appName == APP_NAME then
-		print("appName= " .. appName .. ", eventType= " .. eventType)
+		--print("appName= " .. appName .. ", eventType= " .. eventType)
 		appObject:hide()
 	end
 end)
 --FocusWatcher:start()
 
+zen = require("zen")
+
 hs.hotkey.bind({ "cmd", "alt", "ctrl", "shift" }, "T", function()
+	local function bar_offset()
+		if zen.is_active() then
+			return 0
+		else
+			return 24
+		end
+	end
 	function moveWindow(termemu, space, mainScreen)
 		-- move to main space
 		local win = nil
@@ -36,7 +43,7 @@ hs.hotkey.bind({ "cmd", "alt", "ctrl", "shift" }, "T", function()
 		-- winFrame.h = scrFrame.h - 120
 		winFrame.h = 1320
 		-- winFrame.y = scrFrame.y + 60
-		winFrame.y = scrFrame.y + 24
+		winFrame.y = scrFrame.y + bar_offset()
 		-- winFrame.x = scrFrame.x + 34
 		winFrame.w = scrFrame.w
 		-- winFrame.h = scrFrame.h
