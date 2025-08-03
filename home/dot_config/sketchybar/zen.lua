@@ -20,6 +20,11 @@ local exec = function(displays)
 		padding_left = 2,
 		display = displays,
 	})
+	if zen_mode.active then
+		sbar.exec("hs -c 'zen:on()'")
+	else
+		sbar.exec("hs -c 'zen:off()'")
+	end
 
 	--sbar.exec("sketchybar --trigger zen_displays DISPLAYS=" .. displays)
 end
