@@ -17,17 +17,13 @@ FocusWatcher = hs.application.watcher.new(function(appName, eventType, appObject
 	end
 end)
 --FocusWatcher:start()
+local displayplacer_string =
+	'/opt/homebrew/bin/displayplacer "id:37D8832A-2D66-02CA-B9F7-8F30A301B230 res:1440x900 hz:60 color_depth:8 enabled:true scaling:on origin:(0,0) degree:0" "id:17566138-FA72-9A50-0857-D6964E3302DB res:2560x1440 hz:60 color_depth:8 enabled:true scaling:off origin:(1440,-120) degree:0" "id:CCA8DAF4-3F65-3C57-C90B-A2661D91F570 res:1600x1200 hz:60 color_depth:4 enabled:true scaling:on origin:(1920,1320) degree:0"'
+hs.execute(displayplacer_string)
 
 zen = require("zen")
 
 hs.hotkey.bind({ "cmd", "alt", "ctrl", "shift" }, "T", function()
-	local function bar_offset()
-		if zen.is_active() then
-			return 0
-		else
-			return 24
-		end
-	end
 	function moveWindow(termemu, space, mainScreen)
 		-- move to main space
 		local win = nil
@@ -43,7 +39,7 @@ hs.hotkey.bind({ "cmd", "alt", "ctrl", "shift" }, "T", function()
 		-- winFrame.h = scrFrame.h - 120
 		winFrame.h = 1320
 		-- winFrame.y = scrFrame.y + 60
-		winFrame.y = scrFrame.y + bar_offset()
+		winFrame.y = scrFrame.y + zen:bar_offset()
 		-- winFrame.x = scrFrame.x + 34
 		winFrame.w = scrFrame.w
 		-- winFrame.h = scrFrame.h
@@ -79,3 +75,25 @@ hs.hotkey.bind({ "cmd", "alt", "ctrl", "shift" }, "T", function()
 		end
 	end
 end)
+
+function move_window(monitor, x, y, width, height)
+	--print("monitor: ", monitor, "x: ", x, "y: ", y, "width: ", width, "height: ", height)
+	local win = hs.window.focusedWindow()
+	local scr = hs.screen(monitor)
+	local space = spaces.activeSpaceOnScreen(scr)
+	local winFrame = win:frame()
+	local scrFrame = scr:fullFrame()
+
+	local bar_offset = zen:bar_offset()
+
+	local percent_x = scrFrame.w / 100 * x
+	local percent_y = (scrFrame.h + bar_offset) / 100 * y
+	local percent_w = scrFrame.w * (width / 100) - percent_x
+	local percent_h = (scrFrame.h + bar_offset) * (height / 100)
+	winFrame.x = percent_x + scrFrame.x
+	winFrame.y = percent_y + scrFrame.y + bar_offset
+	winFrame.h = percent_h
+	winFrame.w = percent_w
+	win:moveToScreen(scr, true, false, 0)
+	win:setFrame(winFrame, 0)
+end
