@@ -1,6 +1,50 @@
 gui:
-  theme:
+  theme: # Catppuccin https://github.com/catppuccin/lazygit
+    # Sapphire
+    # activeBorderColor:
+    #   - '#7dc4e4'
+    #   - bold
+    # inactiveBorderColor:
+    #   - '#a5adcb'
+    # optionsTextColor:
+    #   - '#8aadf4'
+    # selectedLineBgColor:
+    #   - '#363a4f'
+    # cherryPickedCommitBgColor:
+    #   - '#494d64'
+    # cherryPickedCommitFgColor:
+    #   - '#7dc4e4'
+    # unstagedChangesColor:
+    #   - '#ed8796'
+    # defaultFgColor:
+    #   - '#cad3f5'
+    # searchingActiveBorderColor:
+    #   - '#eed49f'
+    # authorColors:
+    #   '*': '#b7bdf8'
+
+  #   Muave
+    activeBorderColor:
+      - '#c6a0f6'
+      - bold
+    inactiveBorderColor:
+      - '#a5adcb'
+    optionsTextColor:
+      - '#8aadf4'
+    cherryPickedCommitBgColor:
+      - '#494d64'
+    cherryPickedCommitFgColor:
+      - '#c6a0f6'
+    unstagedChangesColor:
+      - '#ed8796'
+    defaultFgColor:
+      - '#cad3f5'
+    searchingActiveBorderColor:
+      - '#eed49f'
     selectedLineBgColor:
       - '#3d434c'
+    authorColors:
+      '*': '#b7bdf8'
+  
   nerdFontsVersion: "3"
 
