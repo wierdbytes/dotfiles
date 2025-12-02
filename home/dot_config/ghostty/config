@@ -1,5 +1,5 @@
 auto-update = off
-theme = catppuccin-macchiato
+theme = "Catppuccin Macchiato"
 keybind = global:cmd+shift+ctrl+t=toggle_quick_terminal
 keybind = cmd+r=set_font_size:30
 keybind = cmd+e=reset_font_size
