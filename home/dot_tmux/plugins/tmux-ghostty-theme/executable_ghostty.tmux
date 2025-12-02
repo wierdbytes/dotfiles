@@ -10,6 +10,12 @@ cursor_text=""
 selection_background=""
 selection_foreground=""
 
+left_divider=""
+right_divider=""
+
+# left_divider = ""
+# right_divider = ""
+
 ghostty_default_theme_dir="/Applications/Ghostty.app/Contents/Resources/ghostty/themes"
 ghostty_default_config="${HOME}/.config/ghostty/config"
 
@@ -150,7 +156,7 @@ apply_tmux_theme() {
 
   local left_status
   if [ "$show_powerline" = "true" ]; then
-    left_status="#[fg=${bg},bg=${accent}]#{?client_prefix,#[bg=${warning}],} ${left_icon}#[fg=${accent},bg=${bg}]#{?client_prefix,#[fg=${warning}],}"
+    left_status="#[fg=${bg},bg=${accent}]#{?client_prefix,#[bg=${warning}],} ${left_icon}#[fg=${accent},bg=default]#{?client_prefix,#[fg=${warning}],}"
   else
     left_status="#[fg=${bg},bg=${accent}]#{?client_prefix,#[bg=${warning}],} ${left_icon} "
   fi
@@ -165,9 +171,8 @@ apply_tmux_theme() {
   local window_edge_inactive="default"
   local window_edge_active="${accent_alt}"
   if [ "$show_powerline" = "true" ]; then
-    # left = , right = 
-    tmux setw -g window-status-format "#[fg=${fg},bg=defautl]  #I #W#[fg=${bg},bg=${window_edge_inactive}]"
-    tmux setw -g window-status-current-format "#[fg=${bg},bg=${accent_alt}] #I #W#[fg=${window_edge_active},bg=${window_edge_inactive}]"
+    tmux setw -g window-status-format "#[fg=${fg},bg=defautl]  #I #W "
+    tmux setw -g window-status-current-format "#[fg=${accent_alt},bg=default]${left_divider} #[fg=${bg},bg=${accent_alt}]#I #W#[fg=${window_edge_active},bg=${window_edge_inactive}]${right_divider}"
   else
     tmux setw -g window-status-format "#[fg=${window_edge_inactive},bg=${window_edge_inactive}] #[fg=${fg},bg=${bg}] #I #{?window_flags,#[fg=${warning}]#{window_flags} ,}#W #[fg=${window_edge_inactive},bg=${window_edge_inactive}] "
     tmux setw -g window-status-current-format "#[fg=${window_edge_active},bg=${window_edge_active}] #[fg=${bg},bg=${accent_alt}] #I #W #[fg=${window_edge_active},bg=${window_edge_active}] "
