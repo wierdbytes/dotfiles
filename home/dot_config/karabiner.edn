@@ -188,50 +188,48 @@
         {:des "Utility (Enter/Tab/Caps/...)" :rules [
             [:!Cf21 :!Cgrave_accent_and_tilde :zmk]     ;; CMD + `
             ;; [:!Tf21 :!Tgrave_accent_and_tilde]       ;; Control + `
-            ;; [{:sim [:f :g] :modi {                      ;; CapsLock
-            ;;         :optional [
-            ;;             :left_command
-            ;;             :left_shift
-            ;;             :left_control
-            ;;             :left_option
-            ;;             :caps_lock
-            ;;             ]}}
-            ;;     ;; [:caps_lock "sketchybar --trigger kb-layout-change"]
-            ;;     ;; [:caps_lock [:sbar "kb-layout-change"]]
-            ;;     [:caps_lock [:sbar "kb-layout-change"]]
-            ;;     nil
-            ;;     {:params {:sim 30}}
-            ;;     ]
+            [{:sim [:f :g] :modi {                      ;; CapsLock
+                    :optional [
+                        :left_command
+                        :left_shift
+                        :left_control
+                        :left_option
+                        :caps_lock
+                        ]}}
+                [:caps_lock [:sbar "kb-layout-change"]]
+                :mac-keys
+                {:params {:sim 30}}
+            ]
             [
                 :caps_lock
                 [:caps_lock [:sbar "kb-layout-change"]]
                 nil
                 {:params {:sim 30}}
+            ]
+            [{:sim [:w :f] :modi {                      ;; Tab
+                    :optional [
+                        :left_command
+                        :left_shift
+                        :left_control
+                        :left_option
+                        :caps_lock
+                        ]}}
+                :tab
+                :mac-keys
+                {:params {:sim 50}}
+            ]
+            [{:sim [:j :i] :modi {                     ;; Enter
+                    :optional [
+                        :left_command
+                        :left_shift
+                        :left_control
+                        :left_option
+                        :caps_lock
+                        ]}}
+                :return_or_enter
+                :mac-keys
+                {:params {:sim 50}}
                 ]
-            ;; [{:sim [:w :f] :modi {                      ;; Tab
-            ;;         :optional [
-            ;;             :left_command
-            ;;             :left_shift
-            ;;             :left_control
-            ;;             :left_option
-            ;;             :caps_lock
-            ;;             ]}}
-            ;;     :tab
-            ;;     nil
-            ;;     {:params {:sim 50}}
-            ;;     ]
-            ;; [{:sim [:j :i] :modi {                     ;; Enter
-            ;;         :optional [
-            ;;             :left_command
-            ;;             :left_shift
-            ;;             :left_control
-            ;;             :left_option
-            ;;             :caps_lock
-            ;;             ]}}
-            ;;     :return_or_enter
-            ;;     nil
-            ;;     {:params {:sim 50}}
-            ;;     ]
             ]}
 
         {:des "M0 Layer" :rules [
