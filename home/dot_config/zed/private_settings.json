@@ -27,6 +27,7 @@
     "show_branch_icon": false
   },
   "project_panel": {
+    "default_width": 420.0,
     "indent_guides": {
       "show": "always"
     },
