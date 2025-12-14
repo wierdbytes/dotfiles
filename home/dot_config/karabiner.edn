@@ -29,6 +29,7 @@
         :vscode    ["^com\\.microsoft\\.VSCode$"]
         :bear      ["^net\\.shinyfrog\\.bear$"]
         :ffox      ["^org\\.mozilla\\.firefox$"]
+        :zen       ["^app\\.zen-browser\\.zen$"]
         :zoom      ["^us\\.zoom\\.xos$"]
         :discord   ["^com\\.hnc\\.Discord$"]
         :telegram  ["^ru\\.keepcoder\\.Telegram$"]
@@ -264,6 +265,14 @@
             [:h :!Cleft_arrow :ffox]          ;; back history
             [:l :!Cright_arrow :ffox]         ;; next history
             [:e :!CSOclose_bracket :ffox]     ;; picture-in-picture
+            
+            ;; Zen Browser
+            [:k :!OCup_arrow :zen]            ;; next tab
+            [:e :!OCup_arrow :zen]            ;; next tab
+            [:j :!OCdown_arrow :zen]          ;; prev tab
+            [:r :!OCdown_arrow :zen]          ;; prev tab
+            [:f :!OCs :zen]                   ;; floating sidebar toggle
+            [:d :!OCc :zen]                   ;; compact mode toggle
 
             ;; Brave
             [:j :!OCleft_arrow :brave]         ;; prev tab
