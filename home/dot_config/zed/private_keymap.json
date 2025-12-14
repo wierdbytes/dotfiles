@@ -1,0 +1,8 @@
+[
+  {
+    "context": "Editor && edit_prediction_conflict",
+    "bindings": {
+      "cmd-enter": "editor::AcceptEditPrediction" // Example of a modified keybinding
+    }
+  }
+]
