@@ -162,7 +162,19 @@ apply_tmux_theme() {
   fi
   tmux set-option -g status-left "$left_status"
 
-  tmux set-option -g status-right ""
+  local right_format
+  right_format="$(get_tmux_option "@ghostty-right-format" "")"
+  if [ -n "$right_format" ]; then
+    # Заменяем claude-5h и claude-7d на вызовы скрипта
+    local script_dir="${BASH_SOURCE[0]%/*}"
+    right_format="${right_format//claude-5h/#(${script_dir}/claude-usage.sh 5h)}"
+    right_format="${right_format//claude-7d/#(${script_dir}/claude-usage.sh 7d)}"
+    # Разделитель | делаем серым
+    right_format="${right_format// | / #[fg=${muted}]│#[default] }"
+    tmux set-option -g status-right "#[fg=${muted}]${right_format}"
+  else
+    tmux set-option -g status-right ""
+  fi
 
   tmux setw -g window-status-separator ""
   tmux setw -g window-status-activity-style "bold"
