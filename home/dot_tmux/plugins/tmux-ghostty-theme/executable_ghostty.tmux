@@ -173,7 +173,7 @@ apply_tmux_theme() {
     right_format="${right_format//claude-7d/#(${script_dir}/claude-usage.sh 7d)}"
     # Разделитель | делаем серым
     right_format="${right_format// | / #[fg=${muted}]│#[default] }"
-    tmux set-option -g status-right "#[fg=${muted}]${right_format}"
+    tmux set-option -g status-right "#[fg=${muted}]${right_format} "
   else
     tmux set-option -g status-right ""
   fi
