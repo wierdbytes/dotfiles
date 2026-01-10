@@ -155,7 +155,9 @@ apply_tmux_theme() {
   tmux set-option -g display-panes-colour "${muted}"
 
   local left_status
-  if [ "$show_powerline" = "true" ]; then
+  if [ "$left_icon" = "none" ]; then
+    left_status=""
+  elif [ "$show_powerline" = "true" ]; then
     left_status="#[fg=${bg},bg=${accent}]#{?client_prefix,#[bg=${warning}],} ${left_icon}#[fg=${accent},bg=default]#{?client_prefix,#[fg=${warning}],}"
   else
     left_status="#[fg=${bg},bg=${accent}]#{?client_prefix,#[bg=${warning}],} ${left_icon} "
