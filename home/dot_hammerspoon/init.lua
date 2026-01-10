@@ -50,7 +50,7 @@ hs.hotkey.bind({ "cmd", "alt", "ctrl", "shift" }, "T", function()
 		scrFrame = mainScreen:fullFrame()
 		-- winFrame.w = scrFrame.w - 68
 		-- winFrame.h = scrFrame.h - 120
-		winFrame.h = 1320
+		winFrame.h = scrFrame.h - zen:bar_offset()
 		-- winFrame.y = scrFrame.y + 60
 		winFrame.y = scrFrame.y + zen:bar_offset()
 		-- winFrame.x = scrFrame.x + 34
