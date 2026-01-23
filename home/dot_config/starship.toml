@@ -166,7 +166,7 @@ format = "[ 󰔛 $duration ]($style)"
 style = "fg:color_fg0 bg:color_group6"
 
 [time]
-disabled = false
+disabled = true
 time_format = "%R"
 style = "bg:color_group6"
 format = '[[  $time ](fg:color_fg0 bg:color_group6)]($style)'
