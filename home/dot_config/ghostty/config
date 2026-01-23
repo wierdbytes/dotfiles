@@ -17,7 +17,7 @@ cursor-style-blink = false
 
 window-colorspace = display-p3
 window-inherit-font-size = false
-background-opacity = 0.90
+background-opacity = 1
 background-blur = true
 
 macos-titlebar-style = hidden
