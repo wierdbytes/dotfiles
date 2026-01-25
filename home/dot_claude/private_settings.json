@@ -1,0 +1,18 @@
+{
+  "model": "opus",
+  "enabledPlugins": {
+    "typescript-lsp@claude-plugins-official": true,
+    "frontend-design@claude-plugins-official": true,
+    "rust-analyzer-lsp@claude-plugins-official": true,
+    "swift-lsp@claude-plugins-official": true
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "/bin/bash ~/.claude/statusline-command.sh",
+    "padding": 0
+  },
+  "env": {
+    "IS_DEMO": "1",
+    "ENABLE_TOOL_SEARCH": "1"
+  }
+}
