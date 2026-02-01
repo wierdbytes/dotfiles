@@ -37,7 +37,7 @@ dir_parent=$(dirname "$short_dir")
 dir_name=$(basename "$short_dir")
 
 # Context window usage and available before autocompaction
-# Autocompact buffer is 22.5% of context window (45k for 200k model)
+# Autocompact buffer is 16.5% of context window (33k for 200k model)
 context_part=""
 usage=$(echo "$input" | jq '.context_window.current_usage')
 size=$(echo "$input" | jq '.context_window.context_window_size')
@@ -49,8 +49,8 @@ else
     current=0
 fi
 
-# Autocompact triggers at 77.5% (100% - 22.5% buffer)
-autocompact_threshold=$((size * 775 / 1000))
+# Autocompact triggers at 83.5% (100% - 16.5% buffer)
+autocompact_threshold=$((size * 835 / 1000))
 # Percentage of usable context (before autocompact)
 pct=$((current * 100 / autocompact_threshold))
 # Remaining before autocompaction
