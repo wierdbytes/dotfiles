@@ -151,6 +151,7 @@ apply_tmux_theme() {
   tmux set-option -g message-command-style "bg=${accent_alt},fg=${bg}"
   tmux set-option -g pane-border-style "fg=${muted}"
   tmux set-option -g pane-active-border-style "fg=${accent}"
+  tmux set-option -g pane-border-format "#{?pane_active,#[fg=${accent}]#[bg=default]${left_divider} #[fg=${bg}]#[bg=${accent}]#P #{pane_title} #[fg=${accent}]#[bg=default]${right_divider} ,#[fg=${muted}] #P #{pane_title} }"
   tmux set-option -g display-panes-active-colour "${accent}"
   tmux set-option -g display-panes-colour "${muted}"
 
