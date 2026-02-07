@@ -186,7 +186,7 @@ apply_tmux_theme() {
   local window_edge_active="${accent_alt}"
   if [ "$show_powerline" = "true" ]; then
     tmux setw -g window-status-format "#[fg=${fg},bg=defautl]  #I #W "
-    tmux setw -g window-status-current-format "#[fg=${accent_alt},bg=default]${left_divider} #[fg=${bg},bg=${accent_alt}]#I #W#[fg=${window_edge_active},bg=${window_edge_inactive}]${right_divider}"
+    tmux setw -g window-status-current-format "#{?client_prefix,#[fg=${warning}],#[fg=${accent_alt}]}#[bg=default]${left_divider} #{?client_prefix,#[bg=${warning}],#[bg=${accent_alt}]}#[fg=${bg}]#I #W#{?client_prefix,#[fg=${warning}],#[fg=${accent_alt}]}#[bg=${window_edge_inactive}]${right_divider}"
   else
     tmux setw -g window-status-format "#[fg=${window_edge_inactive},bg=${window_edge_inactive}] #[fg=${fg},bg=${bg}] #I #{?window_flags,#[fg=${warning}]#{window_flags} ,}#W #[fg=${window_edge_inactive},bg=${window_edge_inactive}] "
     tmux setw -g window-status-current-format "#[fg=${window_edge_active},bg=${window_edge_active}] #[fg=${bg},bg=${accent_alt}] #I #W #[fg=${window_edge_active},bg=${window_edge_active}] "
