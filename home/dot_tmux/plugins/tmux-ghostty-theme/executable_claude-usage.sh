@@ -124,9 +124,11 @@ fetch_api_data() {
   local token=$(echo "$keychain_data" | jq -r '.claudeAiOauth.accessToken // empty' 2>/dev/null)
   [[ -z "$token" ]] && { [[ -f "$API_CACHE_FILE" ]] && cat "$API_CACHE_FILE"; return 0; }
 
+  local claude_version=$(claude -v 2>/dev/null || echo '2.1.69')
   local response=$(curl -s --max-time 5 "https://api.anthropic.com/api/oauth/usage" \
     -H "Authorization: Bearer $token" \
-    -H "anthropic-beta: oauth-2025-04-20" 2>/dev/null)
+    -H "anthropic-beta: oauth-2025-04-20" \
+    -H "User-Agent: claude-code/$claude_version" 2>/dev/null)
 
   if [[ -n "$response" ]]; then
     echo "$response" | tee "$API_CACHE_FILE"
