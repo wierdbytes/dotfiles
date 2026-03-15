@@ -172,6 +172,7 @@ apply_tmux_theme() {
     local script_dir="${BASH_SOURCE[0]%/*}"
     right_format="${right_format//claude-5h/#(${script_dir}/claude-usage.sh 5h)}"
     right_format="${right_format//claude-7d/#(${script_dir}/claude-usage.sh 7d)}"
+    right_format="${right_format//claude-age/#(${script_dir}/claude-usage.sh age)}"
     # Разделитель | делаем серым
     right_format="${right_format// | / #[fg=${muted}]│#[default] }"
     tmux set-option -g status-right "#[fg=${muted}]${right_format} "

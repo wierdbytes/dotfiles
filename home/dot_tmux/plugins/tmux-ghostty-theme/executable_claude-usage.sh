@@ -1,8 +1,9 @@
 #!/bin/bash
 
-# Usage: claude-usage.sh [5h|7d|all]
+# Usage: claude-usage.sh [5h|7d|age|all]
 # 5h  - показать только 5-часовой лимит
 # 7d  - показать только недельный лимит
+# age - показать возраст кэша (время с последнего ответа API)
 # all - показать оба (по умолчанию)
 
 MODE="${1:-all}"
@@ -10,6 +11,7 @@ MODE="${1:-all}"
 CACHE_DIR="$HOME/.cache"
 API_CACHE_FILE="$CACHE_DIR/claude-api-response.json"
 LOCK_FILE="$CACHE_DIR/claude-usage.lock"
+BACKOFF_FILE="$CACHE_DIR/claude-usage-backoff"
 
 # Tokyo Night Storm palette (tmux format)
 C_RED="#[fg=#f7767e]"
@@ -84,6 +86,22 @@ format_remaining_time_days() {
   fi
 }
 
+format_cache_age() {
+  local seconds="$1"
+  local result
+  if [[ $seconds -lt 2 ]]; then
+    result="now"
+  elif [[ $seconds -lt 60 ]]; then
+    result="${seconds}s"
+  elif [[ $seconds -lt 3600 ]]; then
+    result="$((seconds / 60))m"
+  else
+    result="$((seconds / 3600))h"
+  fi
+  [[ ${#result} -lt 3 ]] && result=" ${result}"
+  echo "$result"
+}
+
 parse_iso_to_seconds_left() {
   local iso_date="$1"
   local clean_date=$(echo "$iso_date" | sed 's/\.[0-9]*//; s/+00:00//; s/Z$//')
@@ -96,18 +114,31 @@ parse_iso_to_seconds_left() {
   fi
 }
 
-# Получаем данные API (с кэшированием)
+# Получаем данные API (с кэшированием и backoff)
 fetch_api_data() {
-  # Используем кэш если < 60 секунд
+  local CACHE_TTL=120
+
+  # Используем кэш если свежий
   if [[ -f "$API_CACHE_FILE" ]]; then
     local age=$(get_file_age "$API_CACHE_FILE")
-    if [[ $age -lt 60 ]]; then
+    if [[ $age -lt $CACHE_TTL ]]; then
       cat "$API_CACHE_FILE"
       return 0
     fi
   fi
 
-  # Rate limit: раз в 30 секунд
+  # Exponential backoff после rate limit ошибок
+  if [[ -f "$BACKOFF_FILE" ]]; then
+    local backoff_age=$(get_file_age "$BACKOFF_FILE")
+    local backoff_until=$(cat "$BACKOFF_FILE" 2>/dev/null)
+    backoff_until=${backoff_until:-120}
+    if [[ $backoff_age -lt $backoff_until ]]; then
+      [[ -f "$API_CACHE_FILE" ]] && cat "$API_CACHE_FILE"
+      return 0
+    fi
+  fi
+
+  # Lock: не более одного запроса одновременно
   if [[ -f "$LOCK_FILE" ]]; then
     local lock_age=$(get_file_age "$LOCK_FILE")
     if [[ $lock_age -lt 30 ]]; then
@@ -130,11 +161,33 @@ fetch_api_data() {
     -H "anthropic-beta: oauth-2025-04-20" \
     -H "User-Agent: claude-code/$claude_version" 2>/dev/null)
 
-  if [[ -n "$response" ]]; then
-    echo "$response" | tee "$API_CACHE_FILE"
-  else
+  if [[ -z "$response" ]]; then
     [[ -f "$API_CACHE_FILE" ]] && cat "$API_CACHE_FILE"
+    return 0
   fi
+
+  # Проверяем ответ на ошибки — НЕ кэшируем ошибки
+  local err_type=$(echo "$response" | jq -r '.error.type // empty' 2>/dev/null)
+  if [[ "$err_type" == "rate_limit_error" ]]; then
+    # Exponential backoff: 120 -> 240 -> 480 -> max 600s
+    local prev_backoff=$(cat "$BACKOFF_FILE" 2>/dev/null)
+    prev_backoff=${prev_backoff:-60}
+    local next_backoff=$((prev_backoff * 2))
+    [[ $next_backoff -gt 600 ]] && next_backoff=600
+    echo "$next_backoff" > "$BACKOFF_FILE"
+    # Вернуть старый кэш (даже просроченный) вместо ошибки
+    [[ -f "$API_CACHE_FILE" ]] && cat "$API_CACHE_FILE"
+    return 0
+  elif [[ -n "$err_type" ]]; then
+    # Другие ошибки API — тоже не кэшируем, используем старый кэш
+    [[ -f "$API_CACHE_FILE" ]] && cat "$API_CACHE_FILE"
+    return 0
+  fi
+
+  # Успешный ответ — сброс backoff и обновление кэша
+  rm -f "$BACKOFF_FILE"
+  echo "$response" > "$API_CACHE_FILE"
+  echo "$response"
 }
 
 # Форматирование 5-часового лимита
@@ -177,6 +230,17 @@ format_7d() {
   printf "%s%s:%s %s %s%s%%%s" "$C_GRAY" "$time_fmt" "$C_RESET" "$weekly_bar" "$weekly_color" "$weekly_int" "$C_RESET"
 }
 
+# age mode не требует API запроса — только возраст кэш-файла
+if [[ "$MODE" == "age" ]]; then
+  if [[ -f "$API_CACHE_FILE" ]]; then
+    cache_age_secs=$(get_file_age "$API_CACHE_FILE")
+    printf "%s%s%s" "$C_GRAY" "$(format_cache_age "$cache_age_secs")" "$C_RESET"
+  else
+    printf "%snow%s" "$C_GRAY" "$C_RESET"
+  fi
+  exit 0
+fi
+
 # Основная логика
 RESPONSE=$(fetch_api_data)
 [[ -z "$RESPONSE" ]] && exit 0
@@ -185,7 +249,7 @@ RESPONSE=$(fetch_api_data)
 session=$(echo "$RESPONSE" | jq -r '.five_hour.utilization // empty' 2>/dev/null)
 weekly=$(echo "$RESPONSE" | jq -r '.seven_day.utilization // empty' 2>/dev/null)
 if [[ -z "$session" && -z "$weekly" ]]; then
-  echo "${C_GRAY}∞ Max${C_RESET}"
+  echo "${C_GRAY}?? Max${C_RESET}"
   exit 0
 fi
 
