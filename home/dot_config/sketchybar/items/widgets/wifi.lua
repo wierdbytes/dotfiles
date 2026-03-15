@@ -7,8 +7,9 @@ sbar.exec(
 )
 
 local function formatBytes(bytes)
-  if bytes == 0 then
-    return "0b"
+  bytes = tonumber(bytes)
+  if not bytes or bytes <= 0 then
+    return "0 Bs"
   end
 
   local k = 1024
@@ -16,6 +17,8 @@ local function formatBytes(bytes)
   local sizes = { "Bs", "kB", "mB", "gB", "tB", "pB", "eB", "zB", "yB" }
 
   local i = math.floor(math.log(bytes) / math.log(k))
+  if i < 0 then i = 0 end
+  if i >= #sizes then i = #sizes - 1 end
 
   local value = bytes / (k ^ i)
   if value >= 100 then
