@@ -1,0 +1,15 @@
+[user]
+	email = wb@xff.pw
+	name = wierdbytes
+[pull]
+	rebase = false
+[core]
+	autocrlf = input
+	quotepath = false
+[filter "lfs"]
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+	required = true
+[init]
+	defaultBranch = master
