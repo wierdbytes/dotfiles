@@ -7,9 +7,15 @@
 
 # If you come from bash you might have to change your $PATH.
 # export PATH=$HOME/bin:/usr/local/bin:$PATH
+#export PATH=$HOME/.local/bin:$PATH
+export PATH=$HOME/.rubies/ruby-3.2.2/lib/ruby/3.2.0:$PATH
+export PATH=$HOME/.rubies/ruby-3.2.2/bin:$PATH
+export PATH=/opt/homebrew/bin:$PATH
 
 export LANG="en_US.UTF-8"
 export LC_ALL="en_US.UTF-8"
+
+#eval "$(curl -s http://localhost:8082/setup)"
 
 # Path to your oh-my-zsh installation.
 export ZSH="/Users/mentor/.oh-my-zsh"
@@ -145,6 +151,8 @@ alias ls="eza --icons=always -l"
 alias lsa="eza --icons=always -l --all --all"
 alias lst="eza --icons=always -l -T"
 alias lg="XDG_CONFIG_HOME=\"$HOME/.config\" lazygit"
+alias cc="claude"
+alias ccb="cd ~/base && claude"
 
 test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh"
 
@@ -258,3 +266,50 @@ export HISTFILE="$HOME/.zsh_history"
 export HISTSIZE=1000000000
 export SAVEHIST=1000000000
 setopt EXTENDED_HISTORY
+
+# bun completions
+[ -s "/Users/mentor/.bun/_bun" ] && source "/Users/mentor/.bun/_bun"
+
+# bun
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
+
+# bun
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
+
+# bun
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
+
+# bun
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
+
+# bun
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
+
+# >>> conda initialize >>>
+# !! Contents within this block are managed by 'conda init' !!
+__conda_setup="$('/opt/miniconda3/bin/conda' 'shell.zsh' 'hook' 2> /dev/null)"
+if [ $? -eq 0 ]; then
+    eval "$__conda_setup"
+else
+    if [ -f "/opt/miniconda3/etc/profile.d/conda.sh" ]; then
+        . "/opt/miniconda3/etc/profile.d/conda.sh"
+    else
+        export PATH="/opt/miniconda3/bin:$PATH"
+    fi
+fi
+unset __conda_setup
+# <<< conda initialize <<<
+
+
+# pnpm
+export PNPM_HOME="/Users/mentor/Library/pnpm"
+case ":$PATH:" in
+  *":$PNPM_HOME:"*) ;;
+  *) export PATH="$PNPM_HOME:$PATH" ;;
+esac
+# pnpm end
