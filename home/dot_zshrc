@@ -313,3 +313,7 @@ case ":$PATH:" in
   *) export PATH="$PNPM_HOME:$PATH" ;;
 esac
 # pnpm end
+
+# --- Gas Town Integration (managed by gt) ---
+[[ -f "/Users/mentor/.config/gastown/shell-hook.sh" ]] && source "/Users/mentor/.config/gastown/shell-hook.sh"
+# --- End Gas Town ---
