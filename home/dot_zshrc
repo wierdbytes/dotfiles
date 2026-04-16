@@ -11,6 +11,7 @@
 export PATH=$HOME/.rubies/ruby-3.2.2/lib/ruby/3.2.0:$PATH
 export PATH=$HOME/.rubies/ruby-3.2.2/bin:$PATH
 export PATH=/opt/homebrew/bin:$PATH
+export PATH=$HOME/go/bin:$PATH
 
 export LANG="en_US.UTF-8"
 export LC_ALL="en_US.UTF-8"
@@ -86,7 +87,7 @@ DISABLE_MAGIC_FUNCTIONS="true"
 # Custom plugins may be added to $ZSH_CUSTOM/plugins/
 # Example format: plugins=(rails git textmate ruby lighthouse)
 # Add wisely, as too many plugins slow down shell startup.
-plugins=(git zsh-autosuggestions)
+plugins=(zsh-autosuggestions)
 
 source $ZSH/oh-my-zsh.sh
 
@@ -143,16 +144,13 @@ PROMPT="$CRUNCH_TIME_$CRUNCH_USER_HOST_$CRUNCH_DIR_$CRUNCH_PROMPT%{$reset_color%
 # alias ohmyzsh="mate ~/.oh-my-zsh"
 
 
-alias swb='GIT_SSH_COMMAND="ssh -i ~/.ssh/wb"'
-alias kfd='kubectl --kubeconfig ~/.kube/kfd'
-alias kxt='kubectl --kubeconfig ~/.kube/kxt'
-alias kxp='kubectl --kubeconfig ~/.kube/kxp'
 alias ls="eza --icons=always -l"
 alias lsa="eza --icons=always -l --all --all"
 alias lst="eza --icons=always -l -T"
+alias lsta="eza --icons=always -la -T"
 alias lg="XDG_CONFIG_HOME=\"$HOME/.config\" lazygit"
 alias cc="claude"
-alias ccb="cd ~/base && claude"
+alias gg="gc --city ~/me/dev/gg"
 
 test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh"
 
@@ -317,3 +315,7 @@ esac
 # --- Gas Town Integration (managed by gt) ---
 [[ -f "/Users/mentor/.config/gastown/shell-hook.sh" ]] && source "/Users/mentor/.config/gastown/shell-hook.sh"
 # --- End Gas Town ---
+
+# >>> gc shell integration >>>
+[[ -f "/Users/mentor/.gc/completions/_gc" ]] && source "/Users/mentor/.gc/completions/_gc"
+# <<< gc shell integration <<<
