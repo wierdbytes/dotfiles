@@ -1,0 +1,27 @@
+{
+  "lastChangelogVersion": "0.74.0",
+  "defaultProvider": "anthropic",
+  "defaultModel": "claude-opus-4-7",
+  "defaultThinkingLevel": "high",
+  "enabledModels": [
+    "openai-codex/gpt-5.5",
+    "anthropic/claude-opus-4-7",
+    "anthropic/claude-haiku-4-5-20251001"
+  ],
+  "hideThinkingBlock": false,
+  "warnings": {
+    "anthropicExtraUsage": false
+  },
+  "packages": [
+    "npm:@tintinweb/pi-tasks",
+    "npm:@tintinweb/pi-subagents",
+    "npm:@eko24ive/pi-ask",
+    "npm:@heyhuynhgiabuu/pi-diff",
+    "npm:@heyhuynhgiabuu/pi-pretty",
+    "npm:@plannotator/pi-extension",
+    "npm:@wierdbytes/pi-web",
+    "npm:@wierdbytes/pi-voice",
+    "npm:@wierdbytes/pi-statusline",
+    "npm:@wierdbytes/pi-anthropic"
+  ]
+}
