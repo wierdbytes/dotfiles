@@ -17,11 +17,13 @@
     "npm:@tintinweb/pi-subagents",
     "npm:@eko24ive/pi-ask",
     "npm:@heyhuynhgiabuu/pi-diff",
-    "npm:@heyhuynhgiabuu/pi-pretty",
     "npm:@plannotator/pi-extension",
     "npm:@wierdbytes/pi-web",
     "npm:@wierdbytes/pi-voice",
     "npm:@wierdbytes/pi-statusline",
-    "npm:@wierdbytes/pi-anthropic"
-  ]
+    "npm:@wierdbytes/pi-anthropic",
+    "npm:@wierdbytes/pi-facelift",
+    "npm:@wierdbytes/pi-tokyo-night"
+  ],
+  "theme": "tokyo-night"
 }
