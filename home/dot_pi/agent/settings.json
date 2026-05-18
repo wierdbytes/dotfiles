@@ -1,5 +1,5 @@
 {
-  "lastChangelogVersion": "0.74.0",
+  "lastChangelogVersion": "0.74.1",
   "defaultProvider": "anthropic",
   "defaultModel": "claude-opus-4-7",
   "defaultThinkingLevel": "high",
@@ -22,7 +22,8 @@
     "npm:@wierdbytes/pi-statusline",
     "npm:@wierdbytes/pi-anthropic",
     "npm:@wierdbytes/pi-tokyo-night",
-    "npm:@wierdbytes/pi-facelift"
+    "npm:@wierdbytes/pi-facelift",
+    "npm:@wierdbytes/pi-peon"
   ],
   "theme": "tokyo-night"
 }
