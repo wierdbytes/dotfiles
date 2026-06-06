@@ -11,6 +11,15 @@
             "xhigh": "max"
           }
         },
+        "claude-opus-4-8": {
+          "thinkingLevelMap": {
+            "minimal": "low",
+            "low": "medium",
+            "medium": "high",
+            "high": "xhigh",
+            "xhigh": "max"
+          }
+        },
         "claude-opus-4-6": {
           "thinkingLevelMap": {
             "minimal": "low",
