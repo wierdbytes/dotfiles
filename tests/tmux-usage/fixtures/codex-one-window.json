@@ -1,0 +1,5 @@
+{
+  "rate_limit": {
+    "secondary_window": {"limit_window_seconds": 604800, "used_percent": 42, "reset_after_seconds": 3600}
+  }
+}

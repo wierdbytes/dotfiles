@@ -1,0 +1,9 @@
+{
+  "user_id": "fixture-user",
+  "email": "nobody@example.invalid",
+  "account_id": "fixture-account",
+  "rate_limit": {
+    "primary_window": {"limit_window_seconds": 604800, "used_percent": 150, "reset_at": 2000604800},
+    "secondary_window": {"limit_window_seconds": 18000, "used_percent": -5, "reset_after": 1800}
+  }
+}

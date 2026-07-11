@@ -168,11 +168,24 @@ apply_tmux_theme() {
   local right_format
   right_format="$(get_tmux_option "@ghostty-right-format" "")"
   if [ -n "$right_format" ]; then
-    # Заменяем claude-5h и claude-7d на вызовы скрипта
+    local usage_provider
+    usage_provider="$(get_tmux_option "@ghostty-usage-provider" "claude")"
+    if [ "$right_format" = "usage-limits" ]; then
+      if [ "$usage_provider" = "codex" ]; then
+        right_format="#[fg=${muted}]󰭹 codex-5h | codex-7d | codex-age"
+      else
+        right_format="#[fg=${muted}]󰛄 claude-5h | claude-7d | claude-age"
+      fi
+    fi
+
+    # Expand usage tokens before replacing separators.
     local script_dir="${BASH_SOURCE[0]%/*}"
-    right_format="${right_format//claude-5h/#(${script_dir}/claude-usage.sh 5h)}"
-    right_format="${right_format//claude-7d/#(${script_dir}/claude-usage.sh 7d)}"
-    right_format="${right_format//claude-age/#(${script_dir}/claude-usage.sh age)}"
+    right_format="${right_format//claude-5h/#(${script_dir}/usage.sh claude 5h)}"
+    right_format="${right_format//claude-7d/#(${script_dir}/usage.sh claude 7d)}"
+    right_format="${right_format//claude-age/#(${script_dir}/usage.sh claude age)}"
+    right_format="${right_format//codex-5h/#(${script_dir}/usage.sh codex 5h)}"
+    right_format="${right_format//codex-7d/#(${script_dir}/usage.sh codex 7d)}"
+    right_format="${right_format//codex-age/#(${script_dir}/usage.sh codex age)}"
     # Разделитель | делаем серым
     right_format="${right_format// | / #[fg=${muted}]│#[default] }"
     tmux set-option -g status-right "#[fg=${muted}]${right_format} "
