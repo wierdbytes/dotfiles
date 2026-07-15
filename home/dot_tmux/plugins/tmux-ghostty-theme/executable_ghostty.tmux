@@ -172,7 +172,7 @@ apply_tmux_theme() {
     usage_provider="$(get_tmux_option "@ghostty-usage-provider" "claude")"
     if [ "$right_format" = "usage-limits" ]; then
       if [ "$usage_provider" = "codex" ]; then
-        right_format="#[fg=${muted}]󰭹 codex-5h | codex-7d | codex-age"
+        right_format="#[fg=${muted}]󰭹 codex-7d | codex-age"
       else
         right_format="#[fg=${muted}]󰛄 claude-5h | claude-7d | claude-age"
       fi
