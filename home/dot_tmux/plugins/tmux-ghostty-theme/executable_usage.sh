@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # Unified tmux usage widget. Bash 3.2 compatible.
-# Usage: usage.sh <claude|codex> [5h|7d|age|all]
+# Usage: usage.sh <claude|codex|qwen> [5h|7d|age|all]
 
 PROVIDER="${1:-}"
 MODE="${2:-all}"
-case "$PROVIDER" in claude|codex) ;; *) exit 2 ;; esac
+case "$PROVIDER" in claude|codex|qwen) ;; *) exit 2 ;; esac
 case "$MODE" in 5h|7d|age|all) ;; *) MODE=all ;; esac
 
 # Raw API responses can contain account metadata; keep all runtime files private.
@@ -17,10 +17,14 @@ if [ "$PROVIDER" = claude ]; then
   CACHE_FILE="$CACHE_ROOT/claude-api-response.json"
   LOCK_DIR="$CACHE_ROOT/claude-usage.lock"
   BACKOFF_FILE="$CACHE_ROOT/claude-usage-backoff"
-else
+elif [ "$PROVIDER" = codex ]; then
   CACHE_FILE="$CACHE_ROOT/codex-api-response.json"
   LOCK_DIR="$CACHE_ROOT/codex-usage.lock"
   BACKOFF_FILE="$CACHE_ROOT/codex-usage-backoff"
+else
+  CACHE_FILE="$CACHE_ROOT/qwen-api-response.json"
+  LOCK_DIR="$CACHE_ROOT/qwen-usage.lock"
+  BACKOFF_FILE="$CACHE_ROOT/qwen-usage-backoff"
 fi
 CACHE_TTL=120
 LOCK_TTL=30
@@ -31,6 +35,7 @@ C_RESET='#[default]'
 LOCK_HELD=0
 TEMP_BODY=''
 TEMP_STATUS=''
+TEMP_PARAMS=''
 
 mkdir -p "$CACHE_ROOT" 2>/dev/null || true
 now() { if [ -n "${USAGE_NOW:-}" ]; then printf '%s\n' "$USAGE_NOW"; else date +%s; fi; }
@@ -45,6 +50,7 @@ file_age() {
 cleanup() {
   [ -n "$TEMP_BODY" ] && rm -f "$TEMP_BODY"
   [ -n "$TEMP_STATUS" ] && rm -f "$TEMP_STATUS"
+  [ -n "$TEMP_PARAMS" ] && rm -f "$TEMP_PARAMS"
   if [ "$LOCK_HELD" -eq 1 ]; then rmdir "$LOCK_DIR" 2>/dev/null || true; fi
 }
 trap cleanup EXIT
@@ -118,8 +124,37 @@ normalize_codex() {
     select(.five_hour != null or .seven_day != null)' "$input" 2>/dev/null
 }
 
+normalize_qwen() {
+  # Qwen Cloud Token Plan usage (console gateway /data/api.json).
+  # per5HourPercentage / per1WeekPercentage are the USED share of the window
+  # expressed as a 0..1 FRACTION (the console inverts it to "Remaining"), so
+  # we scale to percent here to match the Claude/Codex utilization axis. The
+  # bar's red/yellow thresholds only make sense on the used axis, which is
+  # why the widget intentionally shows "used" while the site shows "remaining".
+  # per5HourResetTime / per1WeekResetTime are reset timestamps in ms.
+  local input="$1"
+  jq -e -c '
+    ([.. | objects | select(
+      ((.per5HourPercentage? | type) == "number") or
+      ((.per1WeekPercentage? | type) == "number"))][0]) as $w |
+    select($w != null) |
+    def pct($v): ($v * 10000 | round) / 100;
+    def window($v; $r):
+      if ($v | type) == "number" then
+        {utilization: pct($v),
+         reset_at: (if ($r | type) == "number" then ($r / 1000 | floor) else null end)}
+      else null end;
+    {provider:"qwen",
+     five_hour: window($w.per5HourPercentage?; $w.per5HourResetTime?),
+     seven_day: window($w.per1WeekPercentage?; $w.per1WeekResetTime?)}' "$input" 2>/dev/null
+}
+
 normalize_file() {
-  if [ "$PROVIDER" = claude ]; then normalize_claude "$1"; else normalize_codex "$1"; fi
+  case "$PROVIDER" in
+    claude) normalize_claude "$1" ;;
+    codex) normalize_codex "$1" ;;
+    *) normalize_qwen "$1" ;;
+  esac
 }
 valid_normalized_cache() {
   jq -e --arg p "$PROVIDER" '
@@ -150,6 +185,7 @@ write_cache() {
 
 request() {
   local body="$1" status_file="$2" token account creds version
+  local cookie sec_token base_url action region usage_api params_file
   if [ -n "${USAGE_FIXTURE_FILE:-}" ]; then
     cp "$USAGE_FIXTURE_FILE" "$body" || return 1
     printf '%s' "${USAGE_FIXTURE_STATUS:-200}" > "$status_file"
@@ -167,7 +203,7 @@ header = "Authorization: Bearer $token"
 header = "anthropic-beta: oauth-2025-04-20"
 header = "User-Agent: claude-code/$version"
 EOF
-  else
+  elif [ "$PROVIDER" = codex ]; then
     creds="${CODEX_HOME:-$HOME/.codex}/auth.json"
     [ -f "$creds" ] || return 1
     token=$(jq -r '.tokens.access_token // empty' "$creds" 2>/dev/null)
@@ -180,6 +216,51 @@ request = "GET"
 header = "Authorization: Bearer $token"
 header = "ChatGPT-Account-Id: $account"
 header = "User-Agent: codex-cli"
+EOF
+  else
+    # Qwen Cloud Token Plan usage. Same internal gateway the console home
+    # page calls to render 5-hour/7-day utilization (per5HourPercentage /
+    # per1WeekPercentage). Session cookie auth, not an sk- API key: the
+    # cookie + sec_token are exported from a logged-in home.qwencloud.com
+    # browser tab into ~/.qwencloud/credentials.json (see README).
+    creds="${QWENCLOUD_HOME:-$HOME/.qwencloud}/credentials.json"
+    [ -f "$creds" ] || return 1
+    cookie=$(jq -r '.cookie // empty' "$creds" 2>/dev/null) || return 1
+    sec_token=$(jq -r '.sec_token // empty' "$creds" 2>/dev/null)
+    [ -n "$cookie" ] && [ -n "$sec_token" ] || return 1
+    base_url=$(jq -r '.base_url // "https://cs-data.qwencloud.com"' "$creds" 2>/dev/null)
+    referer=$(jq -r '.referer // "https://home.qwencloud.com/"' "$creds" 2>/dev/null)
+    action=$(jq -r '.action // "IntlBroadScopeAspnGateway"' "$creds" 2>/dev/null)
+    region=$(jq -r '.region // "ap-southeast-1"' "$creds" 2>/dev/null)
+    usage_api=$(jq -r '.usage_api // "zeldaHttp.apikeyMgr./tokenplan/personal/api/v2/usage"' "$creds" 2>/dev/null)
+    [ -n "$base_url" ] && [ -n "$action" ] && [ -n "$region" ] && [ -n "$usage_api" ] || return 1
+    # cornerstoneParam mirrors what the console injects client-side (Wxe());
+    # domain follows the console host taken from the referer.
+    domain=${referer#*://}
+    domain=${domain%%/*}
+    api_enc=$(jq -rn --arg a "$usage_api" '$a|@uri' 2>/dev/null) || api_enc=''
+    params_file="$CACHE_ROOT/.usage-qwen-params.$$"
+    TEMP_PARAMS="$params_file"
+    rm -f "$params_file"
+    printf '%s' "$(jq -n -c --arg api "$usage_api" --arg domain "$domain" '
+      {Api:$api,
+       Data:{cornerstoneParam:{domain:$domain,consoleSite:"QWENCLOUD",
+              console:"ONE_CONSOLE",xsp_lang:"en-US",protocol:"V2",
+              productCode:"p_efm"}},
+       V:"1.0"}' 2>/dev/null)" > "$params_file" || return 1
+    curl --silent --show-error --max-time 5 --compressed --output "$body" --write-out '%{http_code}' \
+      --config - > "$status_file" 2>/dev/null <<EOF
+url = "$base_url/data/api.json?product=sfm_bailian&action=$action&api=$api_enc"
+request = "POST"
+header = "Content-Type: application/x-www-form-urlencoded"
+header = "Cookie: $cookie"
+header = "Referer: $referer"
+header = "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:152.0) Gecko/20100101 Firefox/152.0"
+data-urlencode = "product=sfm_bailian"
+data-urlencode = "action=$action"
+data-urlencode = "sec_token=$sec_token"
+data-urlencode = "region=$region"
+data-urlencode = "params@$params_file"
 EOF
   fi
 }

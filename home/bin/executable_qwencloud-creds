@@ -1,0 +1,139 @@
+#!/bin/bash
+# qwencloud-creds — refresh ~/.qwencloud/credentials.json for the tmux
+# Qwen Cloud usage widget (tmux-ghostty-theme/usage.sh qwen ...).
+#
+# The widget polls the internal home.qwencloud.com console gateway, which
+# authenticates with a browser session (cookie + sec_token CSRF), not an
+# sk- API key. This helper extracts both from a DevTools "Copy as cURL":
+#
+#   1. Log in to https://home.qwencloud.com
+#   2. DevTools → Network → click any request to /data/api.json (reload
+#      the page if none is listed) → right-click → Copy → Copy as cURL
+#   3. pbpaste | qwencloud-creds        (or: qwencloud-creds curl.txt)
+#
+# With no piped input it falls back to interactive prompts. Session
+# cookies expire; when the widget shows --, just re-run this script.
+
+set -u
+
+CREDS_DIR="${QWENCLOUD_HOME:-$HOME/.qwencloud}"
+CREDS_FILE="$CREDS_DIR/credentials.json"
+WIDGET="${QWENCLOUD_WIDGET:-$HOME/.tmux/plugins/tmux-ghostty-theme/usage.sh}"
+
+die() { printf 'qwencloud-creds: %s\n' "$*" >&2; exit 1; }
+
+usage() {
+  sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'
+  exit "${1:-0}"
+}
+
+case "${1:-}" in
+  ''|-) ;;
+  -h|--help) usage 0 ;;
+  -*) die "unknown option: $1" ;;
+esac
+command -v jq >/dev/null 2>&1 || die 'jq is required (brew install jq)'
+
+raw=''
+if [ "$#" -ge 1 ] && [ "$1" != "-" ]; then
+  [ -f "$1" ] || die "no such file: $1"
+  raw=$(cat "$1") || die "cannot read $1"
+elif [ ! -t 0 ]; then
+  raw=$(cat)
+fi
+
+# Join shell line continuations so each flag sits on one logical line.
+flat=$(printf '%s\n' "$raw" | awk '
+  { if (sub(/\\$/, "")) { buf = buf $0 " " } else { print buf $0; buf = "" } }
+  END { if (buf != "") print buf }')
+
+cookie=''
+sec_token=''
+region=''
+action=''
+
+if [ -n "$flat" ]; then
+  cookie=$(printf '%s' "$flat" | grep -oE -- "-H '[Cc]ookie: [^']+'" | head -n1 | sed -E "s/^-H '[Cc]ookie: //; s/'\$//")
+  [ -n "$cookie" ] || cookie=$(printf '%s' "$flat" | grep -oE -- '-H "[Cc]ookie: [^"]+"' | head -n1 | sed -E 's/^-H "[Cc]ookie: //; s/"$//')
+  [ -n "$cookie" ] || cookie=$(printf '%s' "$flat" | grep -oE -- "(-b|--cookie) '[^']+'" | head -n1 | sed -E "s/^(-b|--cookie) '//; s/'\$//")
+  [ -n "$cookie" ] || cookie=$(printf '%s' "$flat" | grep -oE -- '(-b|--cookie) "[^"]+"' | head -n1 | sed -E 's/^(-b|--cookie) "//; s/"$//')
+  sec_token=$(printf '%s' "$flat" | grep -oE 'sec_token=[A-Za-z0-9_%+.=-]*' | head -n1 | sed 's/^sec_token=//')
+  region=$(printf '%s' "$flat" | grep -oE 'region=[A-Za-z0-9_-]*' | head -n1 | sed 's/^region=//')
+  action=$(printf '%s' "$flat" | grep -oE 'action=[A-Za-z0-9]*' | head -n1 | sed 's/^action=//')
+fi
+
+base_url=''
+referer=''
+if [ -n "$flat" ]; then
+  # The copied request targets the console gateway host directly
+  # (e.g. https://cs-data.qwencloud.com); the console origin lives in the
+  # Referer header (https://home.qwencloud.com).
+  base_url=$(printf '%s' "$flat" | grep -oE "curl ['\"]?https?://[^/'\" ]+" | head -n1 | sed -E "s/^curl ['\"]?//")
+  referer=$(printf '%s' "$flat" | grep -oE -- "-H '[Rr]eferer: [^']+'" | head -n1 | sed -E "s/^-H '[Rr]eferer: //; s/'\$//")
+  [ -n "$referer" ] || referer=$(printf '%s' "$flat" | grep -oE -- '-H "[Rr]eferer: [^"]+"' | head -n1 | sed -E 's/^-H "[Rr]eferer: //; s/"$//')
+fi
+
+if [ -z "$cookie" ] || [ -z "$sec_token" ]; then
+  if [ -n "$raw" ]; then
+    die 'could not extract Cookie and/or sec_token from the pasted curl — copy the POST to /data/api.json (its form data carries sec_token)'
+  fi
+  cat >&2 <<'EOF'
+No curl on stdin. Either pipe a DevTools "Copy as cURL":
+
+    pbpaste | qwencloud-creds
+
+or enter the two values manually:
+  - Cookie:      DevTools → Network → any home.qwencloud.com request →
+                 Request Headers → copy the whole "Cookie:" value
+  - sec_token:   DevTools → Console → run: copy(__SEC_TOKEN__)
+EOF
+  printf 'Cookie: ' >&2
+  IFS= read -r cookie
+  printf 'sec_token: ' >&2
+  IFS= read -r sec_token
+fi
+
+[ -n "$cookie" ] && [ -n "$sec_token" ] || die 'cookie and sec_token are required'
+
+old=$(jq -c . "$CREDS_FILE" 2>/dev/null) || old='{}'
+mkdir -p "$CREDS_DIR" || die "cannot create $CREDS_DIR"
+tmp="$CREDS_FILE.tmp.$$"
+if ! (umask 077; jq -n -c \
+  --argjson old "$old" \
+  --arg cookie "$cookie" \
+  --arg sec_token "$sec_token" \
+  --arg region "$region" \
+  --arg action "$action" \
+  --arg base_url "$base_url" \
+  --arg referer "$referer" '
+    $old + {cookie: $cookie, sec_token: $sec_token}
+    + (if $region != "" then {region: $region} else {} end)
+    + (if $action != "" then {action: $action} else {} end)
+    + (if $base_url != "" then {base_url: $base_url} else {} end)
+    + (if $referer != "" then {referer: $referer} else {} end)
+  ' > "$tmp"); then
+  rm -f "$tmp"
+  die 'failed to build credentials JSON'
+fi
+chmod 600 "$tmp" 2>/dev/null && mv -f "$tmp" "$CREDS_FILE" || die "failed to install $CREDS_FILE"
+printf 'wrote %s\n' "$CREDS_FILE"
+
+# Verify end-to-end through the widget itself, using a throwaway cache so
+# the real fetch always runs.
+if [ ! -f "$WIDGET" ]; then
+  printf 'note: %s not deployed yet — run chezmoi apply first\n' "$WIDGET"
+  exit 0
+fi
+probe_dir=$(mktemp -d "${TMPDIR:-/tmp}/qwencloud-creds.XXXXXX") || exit 0
+trap 'rm -rf "$probe_dir"' EXIT HUP INT TERM
+out=$(USAGE_CACHE_DIR="$probe_dir" bash "$WIDGET" qwen 5h 2>/dev/null)
+plain=$(printf '%s' "$out" | sed -E 's/#\[[^]]*\]//g')
+case "$plain" in
+  *%*)
+    printf 'verified — 5h usage: %s\n' "$plain"
+    ;;
+  *)
+    printf 'warning: fetch failed (widget said "%s"); cookie may be stale or no Token Plan on the account\n' "${plain:---}" >&2
+    exit 1
+    ;;
+esac

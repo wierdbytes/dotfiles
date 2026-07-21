@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# Toggle the tmux status usage widget between Claude and Codex.
+# Toggle the tmux status usage widget between Claude, Codex, and Qwen Cloud.
 current=$(tmux show-option -gqv '@ghostty-usage-provider')
-if [ "$current" = codex ]; then
-  next=claude
-else
-  next=codex
-fi
+case "$current" in
+  codex) next=qwen ;;
+  qwen) next=claude ;;
+  *) next=codex ;;
+esac
 
 tmux set-option -g '@ghostty-usage-provider' "$next"
 "${0%/*}/ghostty.tmux"

@@ -1,0 +1,23 @@
+{
+  "code": "200",
+  "data": {
+    "DataV2": {
+      "ret": ["SUCCESS::接口调用成功"],
+      "data": {
+        "msg": "Success.",
+        "code": "SUCCESS",
+        "data": {
+          "per5HourPercentage": 0.612,
+          "per5HourResetTime": 2000000000000,
+          "per1WeekPercentage": 0.81,
+          "per1WeekResetTime": 2000518400000
+        },
+        "requestId": "46c8b050-9ae1-9db8-b2f9-0b837e31da58",
+        "success": true
+      }
+    }
+  },
+  "httpStatusCode": "200",
+  "requestId": "9F8E7D6C-5B4A-3210-FEDC-BA9876543210",
+  "successResponse": true
+}

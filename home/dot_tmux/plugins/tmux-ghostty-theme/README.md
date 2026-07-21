@@ -39,36 +39,69 @@ set -g @ghostty-show-powerline on
 set -g @ghostty-transparent-status off
 ```
 
-### Claude and Codex usage widget
+### Claude, Codex, and Qwen Cloud usage widget
 
-`usage.sh` provides one formatter for both providers:
+`usage.sh` provides one formatter for all three providers:
 
 ```sh
-usage.sh <claude|codex> [5h|7d|age|all]
+usage.sh <claude|codex|qwen> [5h|7d|age|all]
 ```
 
 The optional mode defaults to `all`. The status format recognizes
-`claude-5h`, `claude-7d`, `claude-age`, `codex-5h`, `codex-7d`, and
-`codex-age`; each token is expanded to a direct `usage.sh` invocation.
-`claude-usage.sh` remains as a compatibility wrapper.
+`claude-5h`, `claude-7d`, `claude-age`, `codex-5h`, `codex-7d`,
+`codex-age`, `qwen-5h`, `qwen-7d`, and `qwen-age`; each token is expanded to
+a direct `usage.sh` invocation. `claude-usage.sh` remains as a compatibility
+wrapper.
 
 Set `@ghostty-right-format` to `usage-limits` and select the visible provider
 with `@ghostty-usage-provider` (`claude` by default). The Claude group is
-prefixed with `󰛄`, while Codex uses `󰭹`. Only one provider is rendered at a
-time. In the bundled tmux configuration, `prefix + u` runs
-`toggle-usage.sh`, switches the provider, and refreshes the status line.
+prefixed with `󰛄`, Codex uses `󰭹`, and Qwen Cloud uses `󰅟`. Only one
+provider is rendered at a time. In the bundled tmux configuration,
+`prefix + u` runs `toggle-usage.sh`, which cycles claude → codex → qwen and
+refreshes the status line.
 
 Claude authentication is read from the macOS Keychain service
 `Claude Code-credentials`. Codex authentication is read from
-`${CODEX_HOME:-$HOME/.codex}/auth.json`. The widget requires Bash, `curl`,
-`jq`, and (for Claude) macOS `security`; credentials are sent to curl through
-standard input and are not placed in its argument list.
+`${CODEX_HOME:-$HOME/.codex}/auth.json`. Qwen Cloud has no public usage API,
+so the widget calls the same internal gateway the `home.qwencloud.com`
+console uses to render Token Plan 5-hour/7-day utilization
+(`per5HourPercentage` / `per1WeekPercentage`). It authenticates with a
+browser session, not an `sk-` API key: log in to `home.qwencloud.com`, open
+DevTools, and write `~/.qwencloud/credentials.json` (mode 0600):
+
+```json
+{
+  "cookie": "<the full Cookie request header of any home.qwencloud.com request>",
+  "sec_token": "<window.__SEC_TOKEN__ from the DevTools console>"
+}
+```
+
+Optional keys: `region` (default `ap-southeast-1`), `base_url`, `action`,
+and `usage_api` (the zelda gateway route to poll). The `qwencloud-creds`
+helper (deployed to `~/bin` from this repository) automates the extraction:
+copy any `/data/api.json` request from DevTools as cURL and run
+`pbpaste | qwencloud-creds` — it pulls out `cookie` and `sec_token`, merges
+them into the credentials file, and verifies them against the live gateway.
+Session cookies expire; when the widget falls back to `--`, just re-run the
+helper. The widget requires a Qwen Cloud Token Plan (solo) subscription to
+show percentages. The widget
+requires Bash, `curl`, `jq`, and (for Claude) macOS `security`; credentials
+are sent to curl through standard input and are not placed in its argument
+list.
 
 Responses are normalized before caching, so provider caches contain only the
-provider name plus 5-hour/7-day utilization and Unix reset times. Codex account
-and identity fields are never cached. The cache TTL is 120 seconds; stale valid
-data remains visible during authentication, network, HTTP, or schema failures.
-Requests use an atomic lock and exponential retry backoff. `age` only inspects
-the cache and never accesses authentication or the network. Historical Claude
-cache and backoff paths, including raw Claude cache data, remain supported.
+provider name plus 5-hour/7-day utilization and Unix reset times. Codex
+account and identity fields, and Qwen Cloud instance/uid metadata, are never
+cached. Qwen Cloud reports the used share of each window as a 0-1 fraction
+and the console inverts it to a "Remaining" percentage; the widget scales the
+fraction to a percent and keeps it on the *used* axis (like Claude/Codex) so
+the bar's red/yellow "nearly exhausted" thresholds stay meaningful - hence a
+Qwen window reads as e.g. `10%` in the widget while the console shows
+`Remaining 90%` for the same data. Qwen Cloud reset timestamps arrive in milliseconds and are converted
+to Unix seconds; windows without a timestamp render with plain `5h`/`7d`
+labels. The cache TTL is 120 seconds; stale valid data remains visible during
+authentication, network, HTTP, or schema failures. Requests use an atomic
+lock and exponential retry backoff. `age` only inspects the cache and never
+accesses authentication or the network. Historical Claude cache and backoff
+paths, including raw Claude cache data, remain supported.
 

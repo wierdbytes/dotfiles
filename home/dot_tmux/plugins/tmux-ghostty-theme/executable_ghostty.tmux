@@ -171,11 +171,11 @@ apply_tmux_theme() {
     local usage_provider
     usage_provider="$(get_tmux_option "@ghostty-usage-provider" "claude")"
     if [ "$right_format" = "usage-limits" ]; then
-      if [ "$usage_provider" = "codex" ]; then
-        right_format="#[fg=${muted}]󰭹 codex-7d | codex-age"
-      else
-        right_format="#[fg=${muted}]󰛄 claude-5h | claude-7d | claude-age"
-      fi
+      case "$usage_provider" in
+        codex) right_format="#[fg=${muted}]󰭹 codex-7d | codex-age" ;;
+        qwen) right_format="#[fg=${muted}]󰅟 qwen-5h | qwen-7d | qwen-age" ;;
+        *) right_format="#[fg=${muted}]󰛄 claude-5h | claude-7d | claude-age" ;;
+      esac
     fi
 
     # Expand usage tokens before replacing separators.
@@ -186,6 +186,9 @@ apply_tmux_theme() {
     right_format="${right_format//codex-5h/#(${script_dir}/usage.sh codex 5h)}"
     right_format="${right_format//codex-7d/#(${script_dir}/usage.sh codex 7d)}"
     right_format="${right_format//codex-age/#(${script_dir}/usage.sh codex age)}"
+    right_format="${right_format//qwen-5h/#(${script_dir}/usage.sh qwen 5h)}"
+    right_format="${right_format//qwen-7d/#(${script_dir}/usage.sh qwen 7d)}"
+    right_format="${right_format//qwen-age/#(${script_dir}/usage.sh qwen age)}"
     # Разделитель | делаем серым
     right_format="${right_format// | / #[fg=${muted}]│#[default] }"
     tmux set-option -g status-right "#[fg=${muted}]${right_format} "

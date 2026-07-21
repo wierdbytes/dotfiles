@@ -1,0 +1,10 @@
+{
+  "code": "200",
+  "data": {
+    "Data": {
+      "per5HourPercentage": -4,
+      "per1WeekPercentage": 120
+    }
+  },
+  "successResponse": true
+}

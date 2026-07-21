@@ -88,6 +88,33 @@ perl -e 'utime($ARGV[0]-1000, $ARGV[0]-1000, $ARGV[1])' "$test_now" "$cache/code
 out=$(HOME="$TMP/empty-home" CODEX_HOME="$TMP/no-codex-auth" USAGE_CACHE_DIR="$cache" USAGE_NOW="$test_now" bash "$SCRIPT" codex 5h)
 assert_contains "$out" '44%' 'missing auth uses stale valid cache'
 
+# Qwen Cloud normalization, thresholds, reset times, and cache sanitization.
+cache="$TMP/qwen"; mkdir "$cache"
+out=$(run_usage "$cache" "$FIXTURES/qwen.json" qwen all)
+assert_contains "$out" '#[fg=#e0af68]61%' 'Qwen 5h uses yellow threshold'
+assert_contains "$out" '#[fg=#f7767e]81%' 'Qwen 7d uses red threshold'
+assert_contains "$out" '1157d9h' 'Qwen 5h renders reset countdown from ms timestamp'
+assert_contains "$out" '1163d9h' 'Qwen 7d renders reset countdown from ms timestamp'
+assert_jq "$cache/qwen-api-response.json" '.provider=="qwen" and .five_hour.utilization==61.2 and .seven_day.utilization==81 and .five_hour.reset_at==2000000000 and .seven_day.reset_at==2000518400' 'Qwen response is normalized with reset times'
+assert_jq "$cache/qwen-api-response.json" '([..|objects|keys[]] | any(.=="requestId" or .=="cookie" or .=="sec_token") | not)' 'Qwen cache is sanitized'
+
+# Qwen percentage fields may sit under a nested zelda gateway Data envelope;
+# without reset timestamps the renderer falls back to plain 5h/7d labels.
+cache="$TMP/qwen-nested"; mkdir "$cache"
+out=$(run_usage "$cache" "$FIXTURES/qwen-nested.json" qwen all)
+assert_contains "$out" '0%' 'Qwen negative percent clamps to zero'
+assert_contains "$out" '100%' 'Qwen over-limit percent clamps to 100'
+assert_contains "$out" '5h:' 'Qwen windows fall back to plain labels without reset times'
+assert_jq "$cache/qwen-api-response.json" '.five_hour.utilization==-400 and .seven_day.utilization==12000 and .five_hour.reset_at==null' 'Qwen nested envelope normalizes and scales fraction to percent'
+
+# Missing Qwen Cloud credentials fall back to stale cache without a request.
+cache="$TMP/qwen-no-auth"; mkdir "$cache"
+printf '%s\n' '{"provider":"qwen","five_hour":{"utilization":46,"reset_at":null},"seven_day":null}' > "$cache/qwen-api-response.json"
+chmod 600 "$cache/qwen-api-response.json"
+perl -e 'utime($ARGV[0]-1000, $ARGV[0]-1000, $ARGV[1])' "$test_now" "$cache/qwen-api-response.json"
+out=$(HOME="$TMP/empty-home" QWENCLOUD_HOME="$TMP/no-qwen-creds" USAGE_CACHE_DIR="$cache" USAGE_NOW="$test_now" bash "$SCRIPT" qwen 5h)
+assert_contains "$out" '46%' 'missing Qwen credentials use stale valid cache'
+
 # Historical raw Claude cache remains readable through the compatibility wrapper.
 stage="$TMP/stage"; cache="$TMP/wrapper-cache"; mkdir "$stage" "$cache"
 cp "$SCRIPT" "$stage/usage.sh"; cp "$WRAPPER" "$stage/claude-usage.sh"; chmod +x "$stage/usage.sh" "$stage/claude-usage.sh"
