@@ -1,12 +1,30 @@
 {
+  "diff_view_style": "split",
+  "cli_default_open_behavior": "new_window",
+  "collaboration_panel": {
+    "dock": "right"
+  },
+  "git_panel": {
+    "dock": "right"
+  },
+  "icon_theme": {
+    "mode": "light",
+    "light": "Zed (Default)",
+    "dark": "Zed (Default)"
+  },
   "calls": {
     "mute_on_join": true
   },
   "agent": {
     "dock": "left"
   },
-  "theme": "Catppuccin Macchiato - No Italics",
+  "theme": {
+    "mode": "dark",
+    "light": "One Light",
+    "dark": "Tokyo Night Storm"
+  },
   "outline_panel": {
+    "dock": "right",
     "button": true
   },
   "tabs": {
