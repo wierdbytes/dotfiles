@@ -150,7 +150,6 @@ alias lst="eza --icons=always -l -T"
 alias lsta="eza --icons=always -la -T"
 alias lg="XDG_CONFIG_HOME=\"$HOME/.config\" lazygit"
 alias cc="claude"
-alias gg="gc --city ~/me/dev/gg"
 
 test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh"
 
@@ -268,42 +267,6 @@ setopt EXTENDED_HISTORY
 # bun completions
 [ -s "/Users/mentor/.bun/_bun" ] && source "/Users/mentor/.bun/_bun"
 
-# bun
-export BUN_INSTALL="$HOME/.bun"
-export PATH="$BUN_INSTALL/bin:$PATH"
-
-# bun
-export BUN_INSTALL="$HOME/.bun"
-export PATH="$BUN_INSTALL/bin:$PATH"
-
-# bun
-export BUN_INSTALL="$HOME/.bun"
-export PATH="$BUN_INSTALL/bin:$PATH"
-
-# bun
-export BUN_INSTALL="$HOME/.bun"
-export PATH="$BUN_INSTALL/bin:$PATH"
-
-# bun
-export BUN_INSTALL="$HOME/.bun"
-export PATH="$BUN_INSTALL/bin:$PATH"
-
-# >>> conda initialize >>>
-# !! Contents within this block are managed by 'conda init' !!
-__conda_setup="$('/opt/miniconda3/bin/conda' 'shell.zsh' 'hook' 2> /dev/null)"
-if [ $? -eq 0 ]; then
-    eval "$__conda_setup"
-else
-    if [ -f "/opt/miniconda3/etc/profile.d/conda.sh" ]; then
-        . "/opt/miniconda3/etc/profile.d/conda.sh"
-    else
-        export PATH="/opt/miniconda3/bin:$PATH"
-    fi
-fi
-unset __conda_setup
-# <<< conda initialize <<<
-
-
 # pnpm
 export PNPM_HOME="/Users/mentor/Library/pnpm"
 case ":$PATH:" in
@@ -311,11 +274,3 @@ case ":$PATH:" in
   *) export PATH="$PNPM_HOME:$PATH" ;;
 esac
 # pnpm end
-
-# --- Gas Town Integration (managed by gt) ---
-[[ -f "/Users/mentor/.config/gastown/shell-hook.sh" ]] && source "/Users/mentor/.config/gastown/shell-hook.sh"
-# --- End Gas Town ---
-
-# >>> gc shell integration >>>
-[[ -f "/Users/mentor/.gc/completions/_gc" ]] && source "/Users/mentor/.gc/completions/_gc"
-# <<< gc shell integration <<<
