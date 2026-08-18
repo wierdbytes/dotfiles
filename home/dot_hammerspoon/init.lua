@@ -30,8 +30,13 @@ FocusWatcher = hs.application.watcher.new(function(appName, eventType, appObject
 	end
 end)
 --FocusWatcher:start()
+-- Display arrangement:
+--   MacBook 1440x900  @ (0,0)        - main, physically LEFT of the external
+--   Dell 2560x1440    @ (1440,0)     - to the RIGHT of the laptop
+--   Extra 1600x1200   @ (1920,1440)  - BELOW the external, horizontally centered
+--                                      (2560/2 + 1440 - 1600/2 = 1920)
 local displayplacer_string =
-	'/opt/homebrew/bin/displayplacer "id:37D8832A-2D66-02CA-B9F7-8F30A301B230 res:1440x900 hz:60 color_depth:8 enabled:true scaling:on origin:(0,0) degree:0" "id:17566138-FA72-9A50-0857-D6964E3302DB res:2560x1440 hz:60 color_depth:8 enabled:true scaling:off origin:(0,-1440) degree:0" "id:CCA8DAF4-3F65-3C57-C90B-A2661D91F570 res:1600x1200 hz:60 color_depth:4 enabled:true scaling:on origin:(-1600,-510) degree:0"'
+	'/opt/homebrew/bin/displayplacer "id:37D8832A-2D66-02CA-B9F7-8F30A301B230 res:1440x900 hz:60 color_depth:8 enabled:true scaling:on origin:(0,0) degree:0" "id:17566138-FA72-9A50-0857-D6964E3302DB res:2560x1440 hz:60 color_depth:8 enabled:true scaling:off origin:(1440,0) degree:0" "id:CCA8DAF4-3F65-3C57-C90B-A2661D91F570 res:1600x1200 hz:60 color_depth:4 enabled:true scaling:on origin:(1920,1440) degree:0"'
 hs.execute(displayplacer_string)
 
 zen = require("zen")
