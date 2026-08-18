@@ -13,3 +13,10 @@
 	required = true
 [init]
 	defaultBranch = master
+[beads]
+	role = maintainer
+[credential "https://wb.communities.buzz.xyz/git"]
+	helper = /Applications/Buzz.app/Contents/MacOS/git-credential-nostr
+	usehttppath = true
+[nostr]
+	keyfile = /Users/mentor/.config/buzz/nostr.key
