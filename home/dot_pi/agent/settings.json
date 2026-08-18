@@ -1,13 +1,14 @@
 {
-  "lastChangelogVersion": "0.79.4",
+  "lastChangelogVersion": "0.84.2",
   "defaultProvider": "anthropic",
-  "defaultModel": "claude-opus-4-8",
-  "defaultThinkingLevel": "high",
+  "defaultModel": "claude-opus-5",
+  "defaultThinkingLevel": "xhigh",
   "enabledModels": [
-    "anthropic/claude-opus-4-8",
-    "openai-codex/gpt-5.5",
-    "opencode-go/kimi-k2.6",
-    "anthropic/claude-fable-5"
+    "anthropic/claude-fable-5",
+    "anthropic/claude-opus-5",
+    "openai-codex/gpt-5.6-sol",
+    "opencode-go/kimi-k3",
+    "qwen-token-plan/qwen3.8-max"
   ],
   "hideThinkingBlock": false,
   "warnings": {
@@ -19,12 +20,14 @@
     "npm:@plannotator/pi-extension",
     "npm:@wierdbytes/pi-web",
     "npm:@wierdbytes/pi-voice",
-    "npm:@wierdbytes/pi-statusline",
     "npm:@wierdbytes/pi-anthropic",
     "npm:@wierdbytes/pi-tokyo-night",
     "npm:@wierdbytes/pi-facelift",
     "npm:@wierdbytes/pi-peon",
-    "npm:@autosk/pi-tools"
+    "npm:@autosk/pi-tools",
+    "npm:@wierdbytes/pi-statusline",
+    "npm:pi-mcp-adapter",
+    "npm:pi-langfuse"
   ],
   "theme": "tokyo-night",
   "showHardwareCursor": true
