@@ -17,7 +17,6 @@
   "packages": [
     "npm:@tintinweb/pi-subagents",
     "npm:@eko24ive/pi-ask",
-    "npm:@plannotator/pi-extension",
     "npm:@wierdbytes/pi-web",
     "npm:@wierdbytes/pi-voice",
     "npm:@wierdbytes/pi-anthropic",
