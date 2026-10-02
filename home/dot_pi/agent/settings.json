@@ -1,14 +1,14 @@
 {
-  "lastChangelogVersion": "0.84.2",
+  "lastChangelogVersion": "1.0.0",
   "defaultProvider": "anthropic",
-  "defaultModel": "claude-opus-5",
-  "defaultThinkingLevel": "xhigh",
+  "defaultModel": "claude-opus-5-5",
+  "defaultThinkingLevel": "high",
   "enabledModels": [
-    "anthropic/claude-fable-5",
-    "anthropic/claude-opus-5",
-    "openai-codex/gpt-5.6-sol",
-    "opencode-go/kimi-k3",
-    "qwen-token-plan/qwen3.8-max"
+    "anthropic/claude-opus-5-5",
+    "openai-codex/gpt-6.1-sol",
+    "openai-codex/gpt-6-astra",
+    "anthropic/claude-sonnet-5-5",
+    "opencode-go/muse-spark-1.3-contributor"
   ],
   "hideThinkingBlock": false,
   "warnings": {
@@ -26,7 +26,6 @@
     "npm:@wierdbytes/pi-peon",
     "npm:@autosk/pi-tools",
     "npm:@wierdbytes/pi-statusline",
-    "npm:pi-mcp-adapter",
     "npm:pi-langfuse"
   ],
   "theme": "tokyo-night",
