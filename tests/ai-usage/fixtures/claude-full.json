@@ -1,0 +1,13 @@
+{
+  "five_hour": {"utilization": 6.0, "resets_at": "2033-05-18T03:33:20.248317+00:00", "limit_dollars": null},
+  "seven_day": {"utilization": 9.0, "resets_at": "2033-05-24T03:33:20.248341+00:00"},
+  "seven_day_opus": {"utilization": 12.5, "resets_at": "2033-05-24T03:33:20+00:00"},
+  "seven_day_sonnet": null,
+  "extra_usage": {"is_enabled": true, "monthly_limit": 5000, "used_credits": 1234, "utilization": 24.68, "currency": "USD"},
+  "limits": [
+    {"kind": "session", "group": "session", "percent": 6, "resets_at": "2033-05-18T03:33:20+00:00", "scope": null},
+    {"kind": "weekly_scoped", "group": "weekly", "percent": 3, "resets_at": "2033-05-24T03:33:20+00:00",
+     "scope": {"model": {"id": null, "display_name": "Fable"}, "surface": null}}
+  ],
+  "seven_day_breakdown": {"rows": [{"key": "claude_code", "percent": 96}]}
+}

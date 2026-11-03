@@ -1,6 +1,6 @@
 #!/bin/bash
 # qwencloud-creds — refresh ~/.qwencloud/credentials.json for the tmux
-# Qwen Cloud usage widget (tmux-ghostty-theme/usage.sh qwen ...).
+# Qwen Cloud usage widget (~/bin/ai-usage qwen ..., used by tmux and herdr).
 #
 # The widget polls the internal home.qwencloud.com console gateway, which
 # authenticates with a browser session (cookie + sec_token CSRF), not an
@@ -18,7 +18,7 @@ set -u
 
 CREDS_DIR="${QWENCLOUD_HOME:-$HOME/.qwencloud}"
 CREDS_FILE="$CREDS_DIR/credentials.json"
-WIDGET="${QWENCLOUD_WIDGET:-$HOME/.tmux/plugins/tmux-ghostty-theme/usage.sh}"
+WIDGET="${QWENCLOUD_WIDGET:-$HOME/bin/ai-usage}"
 
 die() { printf 'qwencloud-creds: %s\n' "$*" >&2; exit 1; }
 

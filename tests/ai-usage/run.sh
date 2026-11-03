@@ -2,10 +2,11 @@
 set -u
 
 ROOT=$(cd "${0%/*}/../.." && pwd)
-SCRIPT="$ROOT/home/dot_tmux/plugins/tmux-ghostty-theme/executable_usage.sh"
+SCRIPT="$ROOT/home/bin/executable_ai-usage"
+TMUX_USAGE="$ROOT/home/dot_tmux/plugins/tmux-ghostty-theme/executable_usage.sh"
 WRAPPER="$ROOT/home/dot_tmux/plugins/tmux-ghostty-theme/executable_claude-usage.sh"
-FIXTURES="$ROOT/tests/tmux-usage/fixtures"
-TMP=${TMPDIR:-/tmp}/tmux-usage-test.$$
+FIXTURES="$ROOT/tests/ai-usage/fixtures"
+TMP=${TMPDIR:-/tmp}/ai-usage-test.$$
 PASS=0
 FAIL=0
 mkdir -p "$TMP"
@@ -122,6 +123,87 @@ cp "$FIXTURES/claude.json" "$cache/claude-api-response.json"
 out=$(USAGE_CACHE_DIR="$cache" "$stage/claude-usage.sh" 5h)
 assert_contains "$out" '61%' 'compatibility wrapper reads historical Claude cache'
 assert_jq "$cache/claude-api-response.json" '.provider=="claude" and (keys==["five_hour","provider","seven_day"])' 'historical Claude cache migrates to common schema'
+
+# Optional extras: Claude per-model windows and extra usage; sanitized Codex plan, credits and extra limits.
+cache="$TMP/claude-full"; mkdir "$cache"
+out=$(USAGE_CACHE_DIR="$cache" USAGE_FIXTURE_FILE="$FIXTURES/claude-full.json" USAGE_NOW=1900000000 bash "$SCRIPT" claude json)
+assert_jq_text() { if printf '%s' "$1" | jq -e "$2" >/dev/null 2>&1; then ok "$3"; else not_ok "$3 ($1)"; fi; }
+assert_jq_text "$out" '.five_hour.utilization==6 and .five_hour.reset_at==2000000000 and .seven_day.reset_at==2000518400' 'Claude json parses fractional ISO resets'
+assert_jq_text "$out" '[.models[].label]==["Fable","Opus"] and (.models[]|select(.label=="Opus").utilization)==12.5 and all(.models[]; .window==604800)' 'Claude json lists per-model weekly windows'
+assert_jq_text "$out" '.spend=={"enabled":true,"used":12.34,"limit":50,"utilization":24.68,"currency":"USD"}' 'Claude extra usage is converted from cents'
+assert_jq_text "$out" '.updated_at != null and .error == null and .retry_at == null and (has("seven_day_breakdown")|not)' 'json adds freshness fields and drops unknown fields'
+cache="$TMP/codex-full"; mkdir "$cache"
+out=$(USAGE_CACHE_DIR="$cache" USAGE_FIXTURE_FILE="$FIXTURES/codex-full.json" USAGE_NOW=1900000000 bash "$SCRIPT" codex json)
+assert_jq_text "$out" '.plan=="pro" and .credits=={"has_credits":true,"unlimited":false,"balance":12.5}' 'Codex json carries plan and numeric credits'
+assert_jq_text "$out" '.models==[{"label":"GPT-Spark","utilization":56,"reset_at":1900400000,"window":604800}] and .five_hour.utilization==12 and .seven_day.utilization==34' 'Codex additional limits become model windows'
+assert_jq "$cache/codex-api-response.json" '([..|objects|keys[]] | any(.=="email" or .=="user_id" or .=="account_id" or .=="approx_local_messages") | not)' 'Codex extras cache is sanitized'
+out=$(USAGE_CACHE_DIR="$cache" USAGE_NOW=1900000000 bash "$SCRIPT" codex all)
+assert_contains "$out" '34%' 'tmux output still reads caches with extras'
+
+# json reports failures next to stale data, and an empty provider without data.
+cache="$TMP/json-error"; mkdir "$cache"
+printf '%s\n' '{"provider":"codex","five_hour":{"utilization":33,"reset_at":2000000000},"seven_day":null}' > "$cache/codex-api-response.json"
+perl -e 'utime($ARGV[0]-1000, $ARGV[0]-1000, $ARGV[1])' "$test_now" "$cache/codex-api-response.json"
+out=$(USAGE_CACHE_DIR="$cache" USAGE_FIXTURE_FILE="$FIXTURES/error.json" USAGE_FIXTURE_STATUS=429 bash "$SCRIPT" codex json)
+assert_jq_text "$out" '.five_hour.utilization==33 and .error=="rate limited (HTTP 429)" and .retry_at > .updated_at' 'json keeps stale data with error and retry time'
+out=$(USAGE_CACHE_DIR="$cache" USAGE_FIXTURE_FILE="$FIXTURES/codex-full.json" bash "$SCRIPT" codex json)
+assert_jq_text "$out" '.error=="rate limited (HTTP 429)" and .five_hour.utilization==33' 'json during backoff keeps the last error'
+rm -f "$cache/codex-usage-backoff"
+out=$(USAGE_CACHE_DIR="$cache" USAGE_FIXTURE_FILE="$FIXTURES/codex-full.json" bash "$SCRIPT" codex json)
+assert_jq_text "$out" '.error==null and .five_hour.utilization==12' 'success clears the recorded error'
+[ ! -e "$cache/codex-usage-error" ] && ok 'error file removed on success' || not_ok 'error file removed on success'
+cache="$TMP/json-empty"; mkdir "$cache"
+out=$(USAGE_CACHE_DIR="$cache" USAGE_FIXTURE_FILE="$FIXTURES/invalid.json" bash "$SCRIPT" qwen json)
+assert_jq_text "$out" '.provider=="qwen" and .five_hour==null and .updated_at==null and .error=="unexpected response"' 'json without data names the provider and the error'
+
+cache="$TMP/qwen-logout"; mkdir "$cache"
+out=$(USAGE_CACHE_DIR="$cache" USAGE_FIXTURE_FILE="$FIXTURES/qwen-logged-out.json" bash "$SCRIPT" qwen json)
+assert_jq_text "$out" '.error=="session expired: run qwencloud-creds"' 'Qwen logged-out gateway reply names the fix'
+
+# Token selection: the freshest unexpired sign-in wins (Claude Code keychain/file, Codex CLI, pi); none is renewed.
+stub="$TMP/stub"; mkdir -p "$stub/bin"
+cat > "$stub/bin/curl" <<'STUB'
+#!/bin/bash
+out=''
+while [ $# -gt 0 ]; do case "$1" in --output) out="$2"; shift ;; esac; shift; done
+cat > "$STUB_DIR/curl-config"
+cp "$STUB_BODY" "$out"
+printf 200
+STUB
+cat > "$stub/bin/security" <<'STUB'
+#!/bin/bash
+[ -n "${STUB_KEYCHAIN:-}" ] || exit 44
+printf '%s' "$STUB_KEYCHAIN"
+STUB
+chmod +x "$stub/bin/curl" "$stub/bin/security"
+home="$TMP/token-home"; mkdir -p "$home/.claude" "$home/.pi/agent" "$home/.codex"
+printf '%s' '{"claudeAiOauth":{"accessToken":"expired-file","expiresAt":0}}' > "$home/.claude/.credentials.json"
+printf '%s' '{"anthropic":{"type":"oauth","access":"fresh-pi","refresh":"r","expires":1900009000000},"openai-codex":{"type":"oauth","access":"codex-pi","accountId":"acct-pi","expires":1900001000000}}' > "$home/.pi/agent/auth.json"
+keychain='{"claudeAiOauth":{"accessToken":"expired-keychain","expiresAt":1899999000000,"subscriptionType":"max","rateLimitTier":"default_claude_max_5x"}}'
+run_stub() { cache="$TMP/token-$1"; mkdir -p "$cache"; rm -f "$stub/curl-config"
+  HOME="$home" CODEX_HOME="$home/.codex" PI_CODING_AGENT_DIR="$home/.pi/agent" CLAUDE_CONFIG_DIR="$home/.claude" PATH="$stub/bin:$PATH" STUB_DIR="$stub" STUB_BODY="$3" STUB_KEYCHAIN="$4" \
+    USAGE_CACHE_DIR="$cache" USAGE_NOW=1900000000 bash "$SCRIPT" "$2" json; }
+out=$(run_stub claude claude "$FIXTURES/claude.json" "$keychain")
+grep -q 'Bearer fresh-pi' "$stub/curl-config" 2>/dev/null && ok 'Claude uses the freshest unexpired token (pi)' || not_ok 'Claude uses the freshest unexpired token (pi)'
+assert_jq_text "$out" '.plan=="max 5x" and .five_hour.utilization==61.8' 'Claude plan comes from the Claude Code sign-in'
+printf '%s' '{"anthropic":{"type":"oauth","access":"old-pi","expires":1800000000000}}' > "$home/.pi/agent/auth.json.claude-expired"
+cp "$home/.pi/agent/auth.json" "$home/.pi/agent/auth.json.keep"; mv "$home/.pi/agent/auth.json.claude-expired" "$home/.pi/agent/auth.json"
+out=$(run_stub claude-expired claude "$FIXTURES/claude.json" "$keychain")
+[ ! -e "$stub/curl-config" ] && ok 'expired sign-ins never reach the network' || not_ok 'expired sign-ins never reach the network'
+assert_jq_text "$out" '.error | startswith("sign-in expired")' 'expired sign-ins are reported'
+mv "$home/.pi/agent/auth.json.keep" "$home/.pi/agent/auth.json"
+jwt_payload=$(printf '%s' '{"exp":1900005000}' | base64 | tr '+/' '-_' | tr -d '=\n')
+printf '{"tokens":{"access_token":"h.%s.s","account_id":"acct-cli"}}' "$jwt_payload" > "$home/.codex/auth.json"
+out=$(run_stub codex codex "$FIXTURES/codex-full.json" '')
+grep -q "Bearer h.$jwt_payload.s" "$stub/curl-config" 2>/dev/null && grep -q 'ChatGPT-Account-Id: acct-cli' "$stub/curl-config" && ok 'Codex reads JWT expiry and prefers the fresher CLI token' || not_ok 'Codex reads JWT expiry and prefers the fresher CLI token'
+printf '%s' '{"tokens":{"access_token":"not-a-jwt"}}' > "$home/.codex/auth.json"
+out=$(run_stub codex-pi codex "$FIXTURES/codex-full.json" '')
+grep -q 'Bearer codex-pi' "$stub/curl-config" 2>/dev/null && grep -q 'ChatGPT-Account-Id: acct-pi' "$stub/curl-config" && ok 'known expiry beats unknown expiry' || not_ok 'known expiry beats unknown expiry'
+
+# The tmux plugin path is a thin wrapper around ai-usage.
+cache="$TMP/wrapper2"; mkdir "$cache"
+out=$(AI_USAGE_BIN="$SCRIPT" USAGE_CACHE_DIR="$cache" USAGE_FIXTURE_FILE="$FIXTURES/codex-one-window.json" USAGE_NOW=1900000000 bash "$TMUX_USAGE" codex all)
+assert_contains "$out" '42%' 'tmux usage.sh delegates to ai-usage'
 
 printf '%s passed, %s failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]
