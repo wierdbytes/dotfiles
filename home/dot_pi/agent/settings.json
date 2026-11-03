@@ -1,9 +1,10 @@
 {
-  "lastChangelogVersion": "1.0.0",
+  "lastChangelogVersion": "1.5.0",
   "defaultProvider": "anthropic",
   "defaultModel": "claude-opus-5-5",
   "defaultThinkingLevel": "high",
   "enabledModels": [
+    "anthropic/claude-fable-5-1",
     "anthropic/claude-opus-5-5",
     "openai-codex/gpt-6.1-sol",
     "openai-codex/gpt-6-astra",
@@ -16,7 +17,6 @@
   },
   "packages": [
     "npm:@tintinweb/pi-subagents",
-    "npm:@eko24ive/pi-ask",
     "npm:@wierdbytes/pi-web",
     "npm:@wierdbytes/pi-voice",
     "npm:@wierdbytes/pi-anthropic",
@@ -25,9 +25,20 @@
     "npm:@wierdbytes/pi-peon",
     "npm:@autosk/pi-tools",
     "npm:@wierdbytes/pi-statusline",
-    "npm:pi-langfuse"
+    "npm:pi-langfuse",
+    "npm:@wierdbytes/pi-ask"
   ],
   "theme": "tokyo-night",
   "showHardwareCursor": true,
-  "cacheWarming": "idle"
+  "cacheWarming": "idle",
+  "fullscreenScrollbar": "auto",
+  "fullscreenCopyOnSelect": true,
+  "fullscreenWheelScrollLines": 1,
+  "extensionChangelogVersions": {
+    "{\"source\":\"npm:@tintinweb/pi-subagents\",\"scope\":\"user\"}": "0.22.1",
+    "{\"source\":\"npm:@eko24ive/pi-ask\",\"scope\":\"user\"}": "1.2.0",
+    "{\"source\":\"npm:@wierdbytes/pi-web\",\"scope\":\"user\"}": "0.6.0",
+    "{\"source\":\"npm:@wierdbytes/pi-facelift\",\"scope\":\"user\"}": "0.6.6",
+    "{\"source\":\"npm:@wierdbytes/pi-ask\",\"scope\":\"user\"}": "0.1.0"
+  }
 }
