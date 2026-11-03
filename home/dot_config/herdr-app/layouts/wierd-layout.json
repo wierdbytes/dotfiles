@@ -161,15 +161,15 @@
           "type": "row",
           "children": [
             {
-              "id": "status",
+              "id": "agent-counts",
               "type": "block",
               "content": {
-                "mod": "workspace-status"
+                "mod": "agent-counts"
               },
               "size": {
                 "weight": 1
               },
-              "min": 200
+              "min": 120
             },
             {
               "id": "limits",
