@@ -41,11 +41,16 @@ set -g @ghostty-transparent-status off
 
 ### Claude, Codex, and Qwen Cloud usage widget
 
-`usage.sh` provides one formatter for all three providers:
+The implementation lives in `~/bin/ai-usage` (chezmoi: `home/bin/executable_ai-usage`,
+tests in `tests/ai-usage/run.sh`) and is shared with the herdr `limits` mod.
+`usage.sh` here is a thin wrapper (`AI_USAGE_BIN` overrides the target):
 
 ```sh
-usage.sh <claude|codex|qwen> [5h|7d|age|all]
+ai-usage <claude|codex|qwen> [5h|7d|age|all|json]
 ```
+
+`json` prints the normalized cache plus `updated_at`, `error` (why the last
+refresh failed) and `retry_at` (end of the current backoff), for programs.
 
 The optional mode defaults to `all`. The status format recognizes
 `claude-5h`, `claude-7d`, `claude-age`, `codex-5h`, `codex-7d`,
@@ -61,8 +66,15 @@ provider is rendered at a time. In the bundled tmux configuration,
 refreshes the status line.
 
 Claude authentication is read from the macOS Keychain service
-`Claude Code-credentials`. Codex authentication is read from
-`${CODEX_HOME:-$HOME/.codex}/auth.json`. Qwen Cloud has no public usage API,
+`Claude Code-credentials`, `~/.claude/.credentials.json` and pi's
+`~/.pi/agent/auth.json` (`anthropic`); Codex from
+`${CODEX_HOME:-$HOME/.codex}/auth.json` (expiry from the JWT) and pi's
+`openai-codex`. The freshest unexpired token wins; tokens are never refreshed
+by the widget (rotating a refresh token would sign the owning program out),
+so when every sign-in has expired the widget reports it until Claude Code,
+Codex or pi renews one. Besides the 5-hour/7-day windows the cache keeps the
+plan, per-model weekly windows (`models`), Claude extra usage (`spend`) and
+Codex credits when the response carries them. Qwen Cloud has no public usage API,
 so the widget calls the same internal gateway the `home.qwencloud.com`
 console uses to render Token Plan 5-hour/7-day utilization
 (`per5HourPercentage` / `per1WeekPercentage`). It authenticates with a
