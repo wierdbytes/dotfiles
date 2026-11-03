@@ -28,5 +28,6 @@
     "npm:pi-langfuse"
   ],
   "theme": "tokyo-night",
-  "showHardwareCursor": true
+  "showHardwareCursor": true,
+  "cacheWarming": "idle"
 }
