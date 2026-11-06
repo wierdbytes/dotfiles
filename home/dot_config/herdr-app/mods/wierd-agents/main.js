@@ -9,11 +9,16 @@
 // the context size reads green while the cache is warm, yellow in its last 30s.
 // The Sessions tab lists pi's sessions per space; one is opened in a peek panel
 // (Keep: a tab of its space; closing: that pi ends), or gone to if a pi has it open.
+// With props {panel: "spaces"} this mod is the Spaces panel instead (spaces.js):
+// mods can't import each other's files, so the panels share kit.js and scroll.js here.
 
 import { View, div, image, svg } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
 import { agents, terminals, focused, spaces, panes, run, theme, shared, setShared, setAgentOrder, openOverlay, closeOverlay, props, window, layout, settings, exec, hc, home, appHome, notify } from "herdr";
 import { agentMeta, shortModel, providerOf, tokens, duration, nextTick, effortColor, ctxColor, maxGradient, cacheLeft, cacheState, cacheColor, CACHE_WARN_MS } from "./meta.js";
+import { narrow, toggleSidebar, place, foldMark, RANK, kidStatus, isAgent, tree, statusMark } from "./kit.js";
+import { scrollList } from "./scroll.js";
+import { Spaces } from "./spaces.js";
 
 // The context size's slot ("69.2k" in the mono face); a pi with no context yet
 // keeps this much room, so the badges don't jump when the number shows up.
@@ -29,12 +34,9 @@ const TICK_W = 2, TICK_UP = 4, TICK_STEP = 5000;
 // The list's width less the tick's lane: the list's padding (8 + 8), the bar's
 // inset in its row (8 + 8) and the tick's own width.
 const TICK_LANE_INSET = 32 + TICK_W;
-// Row heights in the list (px at zoom 1) and the gap between rows: the list
-// scrolls itself, so it places rows by these.
-const H_HEADER = 30, H_ROW = 52, H_SUB = 26, H_RAIL = 26, GAP = 1;
-// How long scrolling to the shown agent takes, and the room kept around it.
-const SCROLL_MS = 280;
-const FOLLOW_MARGIN = 8;
+// Row heights in the list (px at zoom 1): the list scrolls itself (scroll.js),
+// so it places rows by these.
+const H_HEADER = 30, H_ROW = 52, H_SUB = 26, H_RAIL = 26;
 // The panel's tabs: the agents running now, and pi's sessions in each space's folder.
 const VIEWS = [
   { id: "agents", label: "Agents" },
@@ -47,12 +49,6 @@ const SESSION_POLL_MS = 10000;
 // A session just opened: no second pi for it while its labels are on the way.
 const LAUNCH_GRACE_MS = 15000;
 
-// Where a space is now: its first terminal's live folder, else where it was made
-// (as the spaces sidebar says it).
-function place(s, ps) {
-  const tabs = new Set((s.tabs ?? []).map((c) => c.id));
-  return ps.find((p) => tabs.has(p.tab) && p.cwd)?.cwd || s.folder;
-}
 // A model id as people say it, as the Agents tab shows names:
 // claude-opus-5-5 -> Opus 5.5 (the provider's mark says Claude).
 function modelName(id, mark) {
@@ -65,46 +61,14 @@ function modelName(id, mark) {
   }
   return words.map((w) => (w === "gpt" ? "GPT" : w[0].toUpperCase() + w.slice(1))).join(" ");
 }
-// A group header's mark next to its count: v when its rows show, > when folded.
-const foldMark = (open) => svg(`mods/workspace-chrome/chevron-${open ? "down" : "right"}.svg`).size(11).flex_none().text_color(theme().dim);
 // A session's id from its file name: <time>_<id>.jsonl.
 const idOfFile = (file) => file.split("/").pop().replace(/\.jsonl$/, "").split("_").pop();
-
-function find(node, id) {
-  if (node?.id === id) return node;
-  for (const child of node?.children ?? []) {
-    const found = find(child, id);
-    if (found) return found;
-  }
-  return null;
-}
-
-// The sidebar's rail goes by its width, not a flag: dragging its edge narrows it too.
-const narrow = () => (find(layout(), "sidebar")?.size?.px ?? Infinity) < 160;
-
-// To the rail (on macOS wide enough for the traffic lights), or back to the width it had.
-function toggleSidebar() {
-  const width = find(layout(), "sidebar")?.size?.px;
-  if (!narrow()) setShared("sidebar.width", width);
-  // Mods edited before the rail went by width still read the flag.
-  setShared("sidebar.collapsed", !narrow());
-  run("layout.resize", { id: "sidebar", px: narrow() ? (shared("sidebar.width") ?? 268) : window()?.platform === "macos" ? 76 : 44 });
-}
 
 const clean = (s) => (s ?? "").replace(/^[^\p{L}\p{N}]+/u, "").trim();
 // A terminal title that says something: not the program's name, a folder or user@host.
 const telling = (live, prog) =>
   Boolean(live) && live !== prog?.name && !/^[~/]|^[A-Za-z]:\\/.test(live) && !live.includes("@") && live.toLowerCase() !== prog?.key;
 
-const RANK = { blocked: 4, done: 3, working: 2, idle: 1 };
-// A sub-agent without a pane isn't in agents(): its raw word, error counting as
-// blocked. It's never done: it reports to its parent, and the parent's done is the news.
-const kidStatus = (k, listed) => {
-  const s = listed.get(k.address) ?? k.status;
-  return s === "error" ? "blocked" : s === "done" ? "idle" : s;
-};
-// A child that reports a status is a sub-agent; one that doesn't is a plain terminal.
-const isAgent = (k) => k.status != null || k.report != null;
 const SORTS = [
   { id: "priority", label: "Priority", icon: "clock" },
   { id: "grouped", label: "Grouped by space", icon: "layers" },
@@ -125,7 +89,8 @@ function providerIcon(mark, size, color) {
   return mark ? svg(`mods/wierd-agents/providers/${mark}.svg`).size(size).flex_none().text_color(color) : null;
 }
 
-export default class Agents extends View {
+// The Agents / Sessions panel (and its sort menu and session peek bar).
+class Agents {
   init(_props, cx) {
     if (props()?.sortMenu) return;
     if (props()?.peekBar) {
@@ -369,15 +334,8 @@ export default class Agents extends View {
   }
 
   // Live sub-agents of `addr`, depth first, each with the tree lines in front of it.
-  tree(all, addr, lead = []) {
-    const kids = all.filter((k) => k.parent === addr && k.state === "live");
-    return kids.flatMap((k, i) => {
-      const last = i === kids.length - 1;
-      return [
-        { t: k, lines: [...lead, last ? "└" : "├"] },
-        ...this.tree(all, k.address, [...lead, last ? "" : "│"]),
-      ];
-    });
+  tree(all, addr) {
+    return tree(all, addr);
   }
 
   subRow(t, s, shown, compact) {
@@ -407,14 +365,9 @@ export default class Agents extends View {
   }
 
   // compact: a ! for blocked where a header already says "Needs you".
+  // (The marks are kit.js's, shared with the Spaces panel.)
   status(t, a, compact = false) {
-    const color = t[a.status] ?? t.dim;
-    if (a.status === "working") return svg("mods/workspace-chrome/spinner.svg").size(12).mx(1).flex_none().text_color(t.working).spin(900);
-    if (a.status === "blocked" && compact) return div().size(14).flex_none().rounded(4).bg(t.blocked + "26").text_size(10.5).font_bold().text_color(t.blocked).flex().items_center().justify_center().child("!");
-    if (a.status === "blocked") return div().flex_none().px(6).h(18).rounded(5).bg(t.blocked + "26").text_size(10.5).font_semibold().text_color(t.blocked).flex().items_center().child("Needs you");
-    // Idle: a ring; done: a dot.
-    if (a.status === "idle") return div().size(7).mx(3).flex_none().rounded(4).border(1.5).border_color(t.idle ?? t.dim);
-    return div().size(7).mx(3).flex_none().rounded(4).bg(a.status === "done" ? color : t.dim + "00");
+    return statusMark(t, a.status, compact);
   }
 
   // A count chip (⑂ 3, >_ 1); with `toggle` it opens the tree of children under the row.
@@ -813,12 +766,12 @@ export default class Agents extends View {
     }
 
     const listView = view === "sessions"
-      ? this.scrollList(t, this.sessionItems(t, { now, clock, cacheTick, cacheTint, mono, dark, effort, spaceOnly, activeSpace, byAddr }), this.scroll.sessions, {
+      ? scrollList(this, t, this.sessionItems(t, { now, clock, cacheTick, cacheTint, mono, dark, effort, spaceOnly, activeSpace, byAddr }), this.scroll.sessions, {
         collapsed,
         // At the end of the list, the last space's next sessions come in.
         onEnd: (cx) => this.moreAtEnd(cx),
       })
-      : this.scrollList(t, items, this.scroll.agents, { collapsed, followAt });
+      : scrollList(this, t, items, this.scroll.agents, { collapsed, followAt });
     // Session times are on the clock too.
     this.due = due;
 
@@ -911,11 +864,6 @@ export default class Agents extends View {
       );
   }
 
-  // The list scrolls itself: a native scroll area can't be moved from code,
-  // and following the shown agent needs that. Every row has a fixed height,
-  // so where each one sits is known without measuring. `st` keeps this list's
-  // offset; `followAt` is a row to bring into view, animated; `onEnd` runs
-  // when the wheel or the thumb reaches the bottom.
   // The folders the Sessions tab shows: local spaces (pi's sessions are on this
   // machine), each with how many sessions it asks for.
   sessionSpaces(spaceOnly, activeSpace) {
@@ -1167,94 +1115,20 @@ export default class Agents extends View {
     }
     return items;
   }
+}
 
-  scrollList(t, items, st, { collapsed, followAt = null, onEnd = null }) {
-    const now = Date.now();
-    let y = 0;
-    const tops = items.map((it) => {
-      const top = y;
-      y += it.h + GAP;
-      return top;
-    });
-    const total = Math.max(0, y - GAP);
-    const viewH = this.viewH ?? 0;
-    const maxOff = Math.max(0, total - viewH);
-    const clamp = (v) => Math.max(0, Math.min(v, maxOff));
-    st.offset = clamp(st.offset ?? 0);
+// One folder, two panels: the layout's props pick which this copy is.
+export default class WierdAgents extends View {
+  init(p, cx) {
+    this.panel = props()?.panel === "spaces" ? new Spaces() : new Agents();
+    this.panel.init?.(p, cx);
+  }
 
-    if (followAt != null) {
-      const top = tops[followAt];
-      const h = items[followAt].h;
-      if (top < st.offset + FOLLOW_MARGIN || top + h > st.offset + viewH - FOLLOW_MARGIN) {
-        // To the middle when the row fits; else its top just under the edge.
-        st.offset = clamp(h + 2 * FOLLOW_MARGIN <= viewH ? top - (viewH - h) / 2 : top - FOLLOW_MARGIN);
-        st.animateUntil = now + SCROLL_MS + 50;
-      }
-    }
-    const motion = now < (st.animateUntil ?? 0) ? { duration: SCROLL_MS, easing: "ease-out" } : { duration: 0 };
+  render(cx) {
+    return this.panel.render(cx);
+  }
 
-    // The scrollbar: a thumb sized by how much of the list shows; drag it to scroll.
-    const thumbH = total > 0 ? Math.max(24, (viewH * viewH) / total) : 0;
-    const thumbTop = maxOff > 0 ? (st.offset / maxOff) * (viewH - thumbH) : 0;
-    const zoom = settings().zoom || 1;
-    const scrollTo = (v, cx) => {
-      const next = clamp(v);
-      st.animateUntil = 0;
-      if (onEnd && maxOff > 0 && next >= maxOff - 2) onEnd(cx);
-      if (next === st.offset) return;
-      st.offset = next;
-      cx.notify();
-    };
-    return v_flex()
-      .id("ag-list")
-      .relative()
-      .flex_1()
-      .min_h(0)
-      .overflow_hidden()
-      .on_size_change((size, cx) => {
-        this.viewH = size.height / zoom;
-        // The cache tick slides in px (a transition doesn't move a % value).
-        this.viewW = size.width / zoom;
-        cx.notify();
-      })
-      .on_scroll_wheel((e, cx) => scrollTo(st.offset - e.delta.y / zoom, cx))
-      .on_mouse_move((e, cx) => {
-        if (!this.drag) return;
-        const track = viewH - thumbH;
-        if (track > 0) scrollTo(this.drag.off + ((e.position.y - this.drag.y) / zoom) * (maxOff / track), cx);
-      })
-      .on_mouse_up("left", () => {
-        this.drag = null;
-      })
-      .on_hover((on) => {
-        if (!on) this.drag = null;
-      })
-      .child(v_flex()
-        .id("ag-content")
-        .absolute()
-        .left(0)
-        .right(0)
-        .top(-st.offset)
-        .transition("top", motion)
-        .px(collapsed ? 0 : 8)
-        .gap(GAP)
-        .children(items.map((it) => it.el)))
-      .when(maxOff > 0, (el) => el.child(div()
-        .id("ag-thumb")
-        .absolute()
-        .right(1)
-        .top(thumbTop)
-        .transition("top", motion)
-        .w(6)
-        .h(thumbH)
-        .rounded(3)
-        .bg(this.drag ? t.muted + "99" : t.dim + "66")
-        .hover((s) => s.bg(t.muted + "99"))
-        .on_mouse_down("left", (e, cx) => {
-          cx.stop_propagation();
-          this.drag = { y: e.position.y, off: st.offset };
-          st.animateUntil = 0;
-          cx.notify();
-        })));
+  async close(cx) {
+    await this.panel.close?.(cx);
   }
 }

@@ -29,7 +29,10 @@
               "id": "spaces",
               "type": "block",
               "content": {
-                "mod": "spaces"
+                "mod": "wierd-agents",
+                "props": {
+                  "panel": "spaces"
+                }
               },
               "size": {
                 "weight": 1
