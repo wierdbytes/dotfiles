@@ -408,7 +408,18 @@ export class Spaces {
     const ps = panes();
     const order = [];
     this.order = order;
-    const listed = (r) => order.push(...(R.groups.get(r.w.id) ?? []).flatMap((g) => g.agents));
+    // Every row's pane in the list's order (agents and plain terminals alike),
+    // hidden ones too: what wierd-agents.next / .prev step through.
+    const paneOrder = [];
+    this.paneOrder = paneOrder;
+    const listed = (r) => {
+      const groups = R.groups.get(r.w.id) ?? [];
+      order.push(...groups.flatMap((g) => g.agents));
+      for (const g of groups) {
+        for (const a of g.agents) if (a.pane) paneOrder.push(a.pane);
+        for (const p of g.others) if (p.pane) paneOrder.push(p.pane);
+      }
+    };
     const draw = (r) => {
       if (collapsed) return [{ el: this.compact(r, t, counts[r.w.id]), h: H_RAIL, id: r.w.id }];
       const groups = R.groups.get(r.w.id) ?? [];
@@ -682,6 +693,18 @@ export class Spaces {
       .on_click(() => run("space.select", { id: w.id }))
       .child(div().text_color(w.active ? t.foreground : t.muted).child(String(i + 1)))
       .when(Boolean(top), (el) => el.child(statusMark(t, top, true)));
+  }
+
+  // Cmd-] / Cmd-[: the next or previous row of the list, agent or terminal,
+  // wrapping around; from outside the list, the first or last.
+  step(dir) {
+    const list = this.paneOrder ?? [];
+    if (!list.length) return;
+    const at = list.indexOf(focused()?.pane ?? null);
+    const next = at < 0
+      ? (dir > 0 ? 0 : list.length - 1)
+      : (at + dir + list.length) % list.length;
+    if (list[next] !== list[at]) run("pane.focus", { pane: list[next] });
   }
 
   render() {

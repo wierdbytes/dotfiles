@@ -6,7 +6,7 @@
 // and meta.js here.
 
 import { View } from "gpui-kit";
-import { props, setShared, terminals, panes, spaces, agents } from "herdr";
+import { props, setShared, terminals, panes, spaces, agents, nextCommand } from "herdr";
 import { Agents } from "./agents.js";
 import { Spaces } from "./spaces.js";
 
@@ -14,6 +14,15 @@ export default class WierdAgents extends View {
   init(p, cx) {
     this.panel = props()?.peekBar ? new Agents() : new Spaces();
     this.panel.init?.(p, cx);
+    // keys.json: "wierd-agents.next" / "wierd-agents.prev" step through the
+    // sidebar's rows (agents and terminals). Only the sidebar copy answers.
+    if (this.panel.step) cx.spawn(async (cx) => {
+      for (;;) {
+        const c = await nextCommand();
+        if (c === "next") this.panel.step(1);
+        else if (c === "prev") this.panel.step(-1);
+      }
+    });
     if (!props()?.peekBar) { // DEBUG
       this.st = { n: 0, sum: 0, max: 0, over20: 0, over50: 0 }; // DEBUG
       cx.timer.every(4000, () => { // DEBUG
