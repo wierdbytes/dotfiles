@@ -26,7 +26,9 @@
     "npm:@autosk/pi-tools",
     "npm:@wierdbytes/pi-statusline",
     "npm:pi-langfuse",
-    "npm:@wierdbytes/pi-ask"
+    "npm:@wierdbytes/pi-ask",
+    "npm:@wierdbytes/pi-autoname",
+    "npm:@wierdbytes/pi-herdr"
   ],
   "theme": "tokyo-night",
   "showHardwareCursor": true,
@@ -35,10 +37,16 @@
   "fullscreenCopyOnSelect": true,
   "fullscreenWheelScrollLines": 1,
   "extensionChangelogVersions": {
-    "{\"source\":\"npm:@tintinweb/pi-subagents\",\"scope\":\"user\"}": "0.22.1",
+    "{\"source\":\"npm:@tintinweb/pi-subagents\",\"scope\":\"user\"}": "0.23.1",
     "{\"source\":\"npm:@eko24ive/pi-ask\",\"scope\":\"user\"}": "1.2.0",
     "{\"source\":\"npm:@wierdbytes/pi-web\",\"scope\":\"user\"}": "0.6.0",
     "{\"source\":\"npm:@wierdbytes/pi-facelift\",\"scope\":\"user\"}": "0.6.6",
-    "{\"source\":\"npm:@wierdbytes/pi-ask\",\"scope\":\"user\"}": "0.1.0"
+    "{\"source\":\"npm:@wierdbytes/pi-ask\",\"scope\":\"user\"}": "0.1.0",
+    "{\"source\":\"npm:@wierdbytes/pi-voice\",\"scope\":\"user\"}": "0.4.2",
+    "{\"source\":\"npm:@wierdbytes/pi-anthropic\",\"scope\":\"user\"}": "0.2.5",
+    "{\"source\":\"npm:@wierdbytes/pi-peon\",\"scope\":\"user\"}": "0.1.2",
+    "{\"source\":\"npm:@wierdbytes/pi-statusline\",\"scope\":\"user\"}": "0.9.1",
+    "{\"source\":\"npm:@wierdbytes/pi-autoname\",\"scope\":\"user\"}": "0.1.1",
+    "{\"source\":\"../../me/dev/pi-wierd-stuff/packages/herdr\",\"scope\":\"user\"}": "0.1.0"
   }
 }
