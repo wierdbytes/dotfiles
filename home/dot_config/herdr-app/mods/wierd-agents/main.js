@@ -4,10 +4,12 @@
 // it runs with (the provider's mark, model and @effort from @wierdbytes/pi-herdr's
 // labels, else its program), its sub-agents and terminals, its context size and how
 // long it has been like this.
+// The Sessions tab lists pi's sessions per space; one is opened in a peek panel
+// (Keep: a tab of its space; closing: that pi ends), or gone to if a pi has it open.
 
 import { View, div, image, svg } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
-import { agents, terminals, focused, spaces, run, theme, shared, setShared, setAgentOrder, openOverlay, closeOverlay, props, window, layout, settings } from "herdr";
+import { agents, terminals, focused, spaces, panes, run, theme, shared, setShared, setAgentOrder, openOverlay, closeOverlay, props, window, layout, settings, exec, hc, home, appHome, notify } from "herdr";
 import { agentMeta, shortModel, providerOf, tokens, duration, nextTick, effortColor, ctxColor, maxGradient } from "./meta.js";
 
 // The context gauge's width; a pi with no context yet keeps this much room.
@@ -18,6 +20,40 @@ const H_HEADER = 30, H_ROW = 52, H_SUB = 26, H_RAIL = 26, GAP = 1;
 // How long scrolling to the shown agent takes, and the room kept around it.
 const SCROLL_MS = 280;
 const FOLLOW_MARGIN = 8;
+// The panel's tabs: the agents running now, and pi's sessions in each space's folder.
+const VIEWS = [
+  { id: "agents", label: "Agents" },
+  { id: "sessions", label: "Sessions" },
+];
+// Sessions per space at first, and how many more each step brings.
+const SESSION_PAGE = 10;
+// How often the shown Sessions tab reads the folders again (new sessions, names).
+const SESSION_POLL_MS = 10000;
+// A session just opened: no second pi for it while its labels are on the way.
+const LAUNCH_GRACE_MS = 15000;
+
+// Where a space is now: its first terminal's live folder, else where it was made
+// (as the spaces sidebar says it).
+function place(s, ps) {
+  const tabs = new Set((s.tabs ?? []).map((c) => c.id));
+  return ps.find((p) => tabs.has(p.tab) && p.cwd)?.cwd || s.folder;
+}
+// A model id as people say it, as the Agents tab shows names:
+// claude-opus-5-5 -> Opus 5.5 (the provider's mark says Claude).
+function modelName(id, mark) {
+  const short = shortModel(id, mark);
+  if (/\s/.test(short) || !short.includes("-")) return short;
+  const words = [];
+  for (const w of short.split("-")) {
+    if (/^\d+$/.test(w) && /^\d+(\.\d+)*$/.test(words.at(-1) ?? "")) words[words.length - 1] += `.${w}`;
+    else words.push(w);
+  }
+  return words.map((w) => (w === "gpt" ? "GPT" : w[0].toUpperCase() + w.slice(1))).join(" ");
+}
+// A group header's mark next to its count: v when its rows show, > when folded.
+const foldMark = (open) => svg(`mods/workspace-chrome/chevron-${open ? "down" : "right"}.svg`).size(11).flex_none().text_color(theme().dim);
+// A session's id from its file name: <time>_<id>.jsonl.
+const idOfFile = (file) => file.split("/").pop().replace(/\.jsonl$/, "").split("_").pop();
 
 function find(node, id) {
   if (node?.id === id) return node;
@@ -77,6 +113,15 @@ function providerIcon(mark, size, color) {
 export default class Agents extends View {
   init(_props, cx) {
     if (props()?.sortMenu) return;
+    if (props()?.peekBar) {
+      // The panel takes the keyboard, not its pi: Esc closes it, Enter keeps it.
+      // The terminal gets it when clicked. Focus once the overlay is up, and
+      // again in case the terminal took it while opening.
+      this.keys = cx.focus_handle();
+      cx.timer.after(30, () => this.keys.focus());
+      cx.timer.after(250, () => this.keys.focus());
+      return;
+    }
     // Folded groups (space or section ids), and agents whose sub-agents are listed.
     this.folded = new Set();
     this.open = new Set();
@@ -85,6 +130,19 @@ export default class Agents extends View {
     this.pendingPins = JSON.parse(localStorage.getItem("pins") ?? "[]");
     if (!this.pendingPins.length) localStorage.removeItem("pins");
     this.migratingPins = new Set();
+    // Each list's own scroll position.
+    this.scroll = { agents: {}, sessions: {} };
+    // Sessions: what each file said so far (and how far it was read), each
+    // folder's newest files, how many each space shows, sessions being opened.
+    this.sessInfo = {};
+    this.sessDirs = {};
+    this.sessLimit = {};
+    this.launching = {};
+    this.windows = JSON.parse(localStorage.getItem("windows") ?? "null");
+    cx.timer.every(1000, (cx) => {
+      if (shared("agents.view") !== "sessions" || narrow()) return;
+      if (this.sessWant !== this.sessHave || Date.now() - (this.sessAt ?? 0) > SESSION_POLL_MS) this.refreshSessions(cx);
+    });
     // Times read 12s, 5m, 3h: redraw only when one of them would read differently.
     // Render sets `due`; waking up to compare is cheap, a redraw is not.
     cx.timer.every(1000, (cx) => {
@@ -183,6 +241,107 @@ export default class Agents extends View {
         .child(svg(`mods/workspace-chrome/${s.icon}.svg`).size(14).flex_none().text_color(t.muted))
         .child(div().flex_1().child(s.label))
         .when(s.id === on, (el) => el.child(svg("mods/workspace-chrome/check.svg").size(14).flex_none().text_color(t.foreground)))));
+  }
+
+  // A session opened from the Sessions tab runs in a terminal of its own, shown
+  // over the window with this bar on top: Keep makes it a tab of its space (and
+  // an agent in the list); closing the panel any other way ends that pi.
+  // Props: { peekBar, terminal, space, title, overlay }.
+  peekBar(t) {
+    const { terminal, space, title, overlay } = props();
+    const term = terminals().find((x) => x.address === terminal);
+    const status = kidStatus(term ?? {}, new Map(agents().map((a) => [a.address, a.status])));
+    const meta = agentMeta(term);
+    const mark = providerOf(meta);
+    const pic = providerIcon(mark, 13, t.muted) ?? icon(term?.program, 14, t.muted);
+    const name = spaces().find((s) => s.id === space)?.name;
+    const keep = () => {
+      this.kept = true;
+      if (space) run("space.select", { id: space });
+      run("terminal.keep", { terminal });
+      closeOverlay(overlay);
+    };
+    const kbd = (text, color) => div().text_size(10).opacity(0.75).text_color(color).child(text);
+    const button = (id, label, tip, onClick, strong = false) => h_flex()
+      .id(id)
+      .h(24)
+      .px(9)
+      .gap(6)
+      .rounded(6)
+      .items_center()
+      .flex_none()
+      .cursor_pointer()
+      .text_color(strong ? t.accent_foreground : t.muted)
+      .when(strong, (el) => el.bg(t.accent))
+      .hover((s) => (strong ? s.opacity(0.9) : s.bg(t.hover).text_color(t.foreground)))
+      .tooltip(tip)
+      .on_click(onClick)
+      .children(Array.isArray(label) ? label : [label]);
+    return h_flex()
+      .id("peek-bar")
+      .track_focus(this.keys)
+      .on_key_down((e, cx) => {
+        if (e.key === "escape") closeOverlay(overlay);
+        else if (e.key === "enter") keep();
+        else return;
+        cx.stop_propagation();
+      })
+      // A press on the bar takes the keyboard back from the terminal.
+      .on_mouse_down("left", () => this.keys.focus())
+      .size_full()
+      .px(12)
+      .gap(9)
+      .items_center()
+      .bg(t.surface)
+      .border_b(1)
+      .border_color(t.border)
+      .text_size(12.5)
+      .child(h_flex().w(18).flex_none().items_center().justify_center().when(Boolean(status), (el) => el.child(this.status(t, { status }, true))))
+      .when(Boolean(pic), (el) => el.child(pic))
+      .child(div().min_w(0).truncate().font_semibold().text_color(t.foreground).child(title || terminal || ""))
+      .child(div().flex_1())
+      .child(button("peek-keep", [div().child("Keep"), kbd("↵", t.accent_foreground)], `Keep it as a tab${name ? ` in ${name}` : ""}`, keep, true))
+      .child(button("peek-close", [div().child("✕"), kbd("esc", t.dim)], "Close and end this pi", () => closeOverlay(overlay)));
+  }
+
+  // The peek panel going away without Keep ends its pi: the session is saved.
+  async close() {
+    const p = props();
+    if (p?.peekBar && !this.kept && p.terminal) await hc(["kill", p.terminal]);
+  }
+
+  openSessionPeek(terminal, space, title) {
+    openOverlay({
+      kind: "dialog",
+      width: 0.82,
+      height: 0.82,
+      layout: {
+        type: "column",
+        children: [
+          { id: "peek-bar", type: "block", size: { px: 38 }, content: { mod: "wierd-agents", props: { peekBar: true, terminal, space, title } } },
+          { id: "peek-term", type: "block", content: { terminal } },
+        ],
+      },
+    });
+  }
+
+  // A new pi on the session, in a terminal of no tab (yet), through the login
+  // shell so it has the person's environment; shown in the peek panel.
+  openSession(cx, { id, space, folder, title }) {
+    this.launching[id] = Date.now();
+    cx.spawn(async (cx) => {
+      try {
+        if (!this.shell) this.shell = (await exec("/bin/sh", ["-c", 'printf %s "$SHELL"'])).stdout.trim() || "/bin/zsh";
+        const r = await hc(["run", "--bg", "--json", "--no-parent", "--rm", "--cwd", folder, "--", this.shell, "-lic", 'exec "$@"', this.shell, "pi", "--session", id]);
+        const addr = JSON.parse(r.stdout).address;
+        if (!addr) throw new Error(r.stderr || r.stdout);
+        this.openSessionPeek(addr, space, title);
+      } catch (e) {
+        delete this.launching[id];
+        notify({ title: "Couldn't open the session", body: String(e?.message ?? e).slice(0, 300), level: "error" });
+      }
+      cx.notify();
+    });
   }
 
   peek(addr) {
@@ -300,8 +459,11 @@ export default class Agents extends View {
   render(cx) {
     const t = theme();
     if (props()?.sortMenu) return this.sortMenu(t);
+    if (props()?.peekBar) return this.peekBar(t);
     const collapsed = narrow();
     const sort = sortOf();
+    // The rail has no tabs: it lists agents.
+    const view = !collapsed && shared("agents.view") === "sessions" ? "sessions" : "agents";
     // Only the shown space's agents, like Mail's unread filter.
     const spaceOnly = shared("agents.spaceOnly") === true;
     const activeSpace = spaces().find((s) => s.active);
@@ -521,111 +683,35 @@ export default class Agents extends View {
           cx.notify();
         })
         .child(div().truncate().text_color(t[g.status] ?? t.dim).child(g.label))
-        .when(byPriority || !open, (el) => el.child(div().text_color(t.dim).child(String(g.members.length))))
+        .child(div().text_color(t.dim).child(String(g.members.length)))
+        .child(foldMark(open))
         .child(div().flex_1())
-        .when(!open, (el) => el
-          .when(!byPriority && top && top !== "idle", (el) => el.child(this.status(t, { status: top }, true)))
-          .child(svg("mods/workspace-chrome/chevron-right.svg").size(11).flex_none().text_color(t.dim)));
+        .when(!open && !byPriority && top && top !== "idle", (el) => el.child(this.status(t, { status: top }, true)));
     };
     const items = collapsed
       ? list.flatMap(withKids)
       : groups.flatMap((g) => [{ el: header(g), h: H_HEADER }, ...(this.folded.has(g.id) ? [] : g.members.flatMap(withKids))]);
     this.due = due;
 
-    // The list scrolls itself: a native scroll area can't be moved from code,
-    // and following the shown agent needs that. Every row has a fixed height,
-    // so where each one sits is known without measuring.
-    let y = 0;
-    const tops = items.map((it) => {
-      const top = y;
-      y += it.h + GAP;
-      return top;
-    });
-    const total = Math.max(0, y - GAP);
-    const viewH = this.viewH ?? 0;
-    const maxOff = Math.max(0, total - viewH);
-    const clamp = (v) => Math.max(0, Math.min(v, maxOff));
-    this.offset = clamp(this.offset ?? 0);
-    this.maxOff = maxOff;
-
     // A new space or a new agent in focus: bring its row into view, animated.
     const current = list.find((a) => a.focused);
     const followKey = `${activeSpace?.id ?? ""}|${current?.address ?? ""}`;
+    let followAt = null;
     if (this.viewH && followKey !== this.followKey) {
       this.followKey = followKey;
       const at = current ? items.findIndex((it) => it.addr === current.address) : -1;
-      if (at >= 0) {
-        const top = tops[at];
-        const h = items[at].h;
-        if (top < this.offset + FOLLOW_MARGIN || top + h > this.offset + viewH - FOLLOW_MARGIN) {
-          // To the middle when the row fits; else its top just under the edge.
-          this.offset = clamp(h + 2 * FOLLOW_MARGIN <= viewH ? top - (viewH - h) / 2 : top - FOLLOW_MARGIN);
-          this.animateUntil = now + SCROLL_MS + 50;
-        }
-      }
+      if (at >= 0) followAt = at;
     }
-    const motion = now < (this.animateUntil ?? 0) ? { duration: SCROLL_MS, easing: "ease-out" } : { duration: 0 };
 
-    // The scrollbar: a thumb sized by how much of the list shows; drag it to scroll.
-    const thumbH = total > 0 ? Math.max(24, (viewH * viewH) / total) : 0;
-    const thumbTop = maxOff > 0 ? (this.offset / maxOff) * (viewH - thumbH) : 0;
-    const zoom = settings().zoom || 1;
-    const scrollTo = (v, cx) => {
-      const next = clamp(v);
-      this.animateUntil = 0;
-      if (next === this.offset) return;
-      this.offset = next;
-      cx.notify();
-    };
-    const listView = v_flex()
-      .id("ag-list")
-      .relative()
-      .flex_1()
-      .min_h(0)
-      .overflow_hidden()
-      .on_size_change((size, cx) => {
-        this.viewH = size.height / zoom;
-        cx.notify();
+    const listView = view === "sessions"
+      ? this.scrollList(t, this.sessionItems(t, { now, clock, mono, dark, effort, spaceOnly, activeSpace, byAddr }), this.scroll.sessions, {
+        collapsed,
+        // At the end of the list, the last space's next sessions come in.
+        onEnd: (cx) => this.moreAtEnd(cx),
       })
-      .on_scroll_wheel((e, cx) => scrollTo(this.offset - e.delta.y / zoom, cx))
-      .on_mouse_move((e, cx) => {
-        if (!this.drag) return;
-        const track = viewH - thumbH;
-        if (track > 0) scrollTo(this.drag.off + ((e.position.y - this.drag.y) / zoom) * (maxOff / track), cx);
-      })
-      .on_mouse_up("left", () => {
-        this.drag = null;
-      })
-      .on_hover((on) => {
-        if (!on) this.drag = null;
-      })
-      .child(v_flex()
-        .id("ag-content")
-        .absolute()
-        .left(0)
-        .right(0)
-        .top(-this.offset)
-        .transition("top", motion)
-        .px(collapsed ? 0 : 8)
-        .gap(GAP)
-        .children(items.map((it) => it.el)))
-      .when(maxOff > 0, (el) => el.child(div()
-        .id("ag-thumb")
-        .absolute()
-        .right(1)
-        .top(thumbTop)
-        .transition("top", motion)
-        .w(6)
-        .h(thumbH)
-        .rounded(3)
-        .bg(this.drag ? t.muted + "99" : t.dim + "66")
-        .hover((s) => s.bg(t.muted + "99"))
-        .on_mouse_down("left", (e, cx) => {
-          cx.stop_propagation();
-          this.drag = { y: e.position.y, off: this.offset };
-          this.animateUntil = 0;
-          cx.notify();
-        })));
+      : this.scrollList(t, items, this.scroll.agents, { collapsed, followAt });
+    // Session times are on the clock too.
+    this.due = due;
 
     return v_flex()
       .size_full()
@@ -637,15 +723,42 @@ export default class Agents extends View {
       .when(!collapsed, (el) =>
         el.child(
           h_flex()
-            .px(16)
+            .px(12)
             .h(41)
-            .pt(14)
+            .pt(12)
             .pb(5)
             .flex_none()
             .items_center()
             .justify_between()
-            .child(div().text_size(11.5).font_medium().text_color(t.dim).child("Agents"))
-            .child(h_flex().gap(10).items_center()
+            .child(h_flex().gap(2).items_center().children(VIEWS.map((v) => div()
+              .id(`view-${v.id}`)
+              .h(22)
+              .px(6)
+              .rounded(5)
+              .flex()
+              .items_center()
+              .text_size(11.5)
+              .font_medium()
+              .cursor_pointer()
+              .text_color(view === v.id ? t.foreground : t.dim)
+              .when(view === v.id, (el) => el.bg(t.hover))
+              .hover((s) => s.text_color(t.foreground))
+              .on_click((_e, cx) => {
+                setShared("agents.view", v.id);
+                if (v.id === "sessions") this.refreshSessions(cx);
+              })
+              .child(v.label))))
+            .child(h_flex().gap(10).pr(4).items_center()
+              .when(view === "agents", (el) => el.child(
+                div()
+                  .id("ag-sort")
+                  .text_size(11)
+                  .text_color(t.dim)
+                  .hover((s) => s.text_color(t.foreground))
+                  .on_click(() => openOverlay({ mod: "wierd-agents", kind: "popup", width: 200, height: 140, props: { sortMenu: true } }))
+                  .tooltip(`Sort agents: ${sort.label}`)
+                  .child(svg(`mods/workspace-chrome/${sort.icon}.svg`).size(14)),
+              ))
               .child(
                 h_flex()
                   .id("ag-filter")
@@ -655,28 +768,18 @@ export default class Agents extends View {
                   .text_color(t.dim)
                   .hover((s) => s.text_color(t.foreground))
                   .on_click(() => setShared("agents.spaceOnly", !spaceOnly))
-                  .tooltip(spaceOnly ? `Showing ${activeSpace?.name ?? "this space"}'s agents · Show all` : "Show only this space's agents")
+                  .tooltip(spaceOnly ? `Showing ${activeSpace?.name ?? "this space"} only · Show all` : `Show only this space's ${view === "sessions" ? "sessions" : "agents"}`)
                   .when(spaceOnly, (el) => el.child(
                     h_flex().size(12).rounded_full().bg(t.accent).items_center().justify_center()
                       .child(svg("mods/wierd-agents/filter-lines.svg").size(12).text_color(t.accent_foreground))))
                   .when(!spaceOnly, (el) => el.child(svg("mods/wierd-agents/filter.svg").size(14))),
-              )
-              .child(
-              div()
-                .id("ag-sort")
-                .text_size(11)
-                .text_color(t.dim)
-                .hover((s) => s.text_color(t.foreground))
-                .on_click(() => openOverlay({ mod: "wierd-agents", kind: "popup", width: 200, height: 140, props: { sortMenu: true } }))
-                .tooltip(`Sort agents: ${sort.label}`)
-                .child(svg(`mods/workspace-chrome/${sort.icon}.svg`).size(14)),
-            )),
+              )),
         ),
       )
-      .when(list.length === 0 && !collapsed && spaceOnly, (el) =>
+      .when(view === "agents" && list.length === 0 && !collapsed && spaceOnly, (el) =>
         el.child(div().px(16).text_size(12).text_color(t.dim).child(`No agents in ${activeSpace?.name ?? "this space"}.`)),
       )
-      .when(list.length === 0 && !collapsed && !spaceOnly, (el) =>
+      .when(view === "agents" && list.length === 0 && !collapsed && !spaceOnly, (el) =>
         el.child(div().px(12).text_size(12).text_color(t.dim).child("No agent status yet. Agents show up here when they report their status. Older versions and agents inside tmux may not.")),
       )
       .child(listView)
@@ -697,5 +800,344 @@ export default class Agents extends View {
             ),
         ),
       );
+  }
+
+  // The list scrolls itself: a native scroll area can't be moved from code,
+  // and following the shown agent needs that. Every row has a fixed height,
+  // so where each one sits is known without measuring. `st` keeps this list's
+  // offset; `followAt` is a row to bring into view, animated; `onEnd` runs
+  // when the wheel or the thumb reaches the bottom.
+  // The folders the Sessions tab shows: local spaces (pi's sessions are on this
+  // machine), each with how many sessions it asks for.
+  sessionSpaces(spaceOnly, activeSpace) {
+    const ps = panes();
+    return spaces()
+      .filter((s) => !s.machine && (!spaceOnly || s.id === activeSpace?.id))
+      .map((s) => ({ space: s, cwd: place(s, ps), limit: this.sessLimit[s.id] ?? SESSION_PAGE }))
+      .filter((x) => x.cwd);
+  }
+
+  // Reads the folders (sessions.mjs, only what pi appended since last time).
+  refreshSessions(cx) {
+    if (this.sessBusy) return;
+    const want = this.sessWant;
+    const wanted = this.sessReq ?? [];
+    if (!wanted.length) return;
+    this.sessBusy = true;
+    if (!this.windowsAsked) {
+      this.windowsAsked = true;
+      cx.spawn(async (cx) => {
+        try {
+          if (!this.shell) this.shell = (await exec("/bin/sh", ["-c", 'printf %s "$SHELL"'])).stdout.trim() || "/bin/zsh";
+          const r = await exec(this.shell, ["-lic", "pi --list-models"]);
+          const unit = { K: 1e3, M: 1e6 };
+          const windows = {};
+          for (const line of r.stdout.split("\n")) {
+            const m = line.match(/^(\S+)\s+(\S+)\s+([\d.]+)([KM]?)\s/);
+            if (m) windows[`${m[1]}/${m[2]}`] = Math.round(Number(m[3]) * (unit[m[4]] ?? 1));
+          }
+          if (Object.keys(windows).length) {
+            this.windows = windows;
+            localStorage.setItem("windows", JSON.stringify(windows));
+            cx.notify();
+          }
+        } catch {}
+      });
+    }
+    this.sessAt = Date.now();
+    const dirs = new Map();
+    for (const { cwd, limit } of wanted) dirs.set(cwd, Math.max(limit, dirs.get(cwd) ?? 0));
+    const known = Object.fromEntries(Object.entries(this.sessInfo).map(([f, i]) => [f, i.end ?? 0]));
+    const req = { root: `${home()}/.pi/agent/sessions`, dirs: [...dirs].map(([cwd, limit]) => ({ cwd, limit })), known };
+    cx.spawn(async (cx) => {
+      try {
+        const r = await exec("node", [`${appHome()}/mods/wierd-agents/sessions.mjs`, JSON.stringify(req)]);
+        const out = JSON.parse(r.stdout);
+        for (const [file, info] of Object.entries(out.read ?? {})) this.sessInfo[file] = { ...this.sessInfo[file], ...info };
+        Object.assign(this.sessDirs, out.dirs ?? {});
+        this.sessHave = want;
+        this.sessError = null;
+      } catch (e) {
+        this.sessError = String(e?.message ?? e);
+        this.sessHave = want;
+      } finally {
+        this.sessBusy = false;
+      }
+      cx.notify();
+    });
+  }
+
+  // Scrolled to the end: the last space with more sessions shows the next page.
+  moreAtEnd(cx) {
+    const last = this.sessShown?.at(-1);
+    if (!last || this.sessBusy || last.shown >= last.total || this.folded.has(`ss-${last.space}`)) return;
+    this.sessLimit[last.space] = last.limit + SESSION_PAGE;
+    cx.notify();
+  }
+
+  // The Sessions tab's rows: per space a header, its sessions newest first, and
+  // a row for more. A session pi has open shows that agent's status and goes to
+  // it; one nobody has open starts `pi --session <id>` in a new tab there.
+  sessionItems(t, { now, clock, mono, dark, effort, spaceOnly, activeSpace, byAddr }) {
+    const groups = this.sessionSpaces(spaceOnly, activeSpace);
+    this.sessReq = groups.map(({ cwd, limit }) => ({ cwd, limit }));
+    this.sessWant = JSON.stringify(this.sessReq);
+
+    // Which pi has which session open (pi-herdr's agent.session label).
+    const byAgent = new Map(agents().map((a) => [a.address, a]));
+    const open = new Map();
+    for (const term of byAddr.values()) {
+      const id = term.labels?.["agent.session"];
+      if (id && term.state === "live" && agentMeta(term)) open.set(id, term.address);
+    }
+    // A pi started before pi-herdr said its session: its folder and the session's
+    // name (what it reports) tell, for the newest session of that name.
+    const unsaid = new Map();
+    for (const term of byAddr.values()) {
+      if (term.state !== "live" || term.labels?.["agent.session"] || !agentMeta(term)) continue;
+      const name = clean(term.report?.msg);
+      const where = term.foreground?.cwd ?? term.cwd;
+      if (name && where) unsaid.set(`${where}\n${name}`, term.address);
+    }
+    const taken = new Set(open.values());
+    const ps = panes();
+
+    const items = [];
+    this.sessShown = [];
+    for (const { space, cwd, limit } of groups) {
+      const dir = this.sessDirs[cwd];
+      const gid = `ss-${space.id}`;
+      const folded = this.folded.has(gid);
+      items.push({
+        h: H_HEADER,
+        el: h_flex()
+          .id(gid)
+          .px(8)
+          .pt(8)
+          .h(H_HEADER)
+          .flex_none()
+          .gap(6)
+          .items_center()
+          .text_size(11)
+          .font_medium()
+          .cursor_pointer()
+          .hover((s) => s.text_color(t.foreground))
+          .on_click((_e, cx) => {
+            folded ? this.folded.delete(gid) : this.folded.add(gid);
+            cx.notify();
+          })
+          .child(div().truncate().text_color(space.active ? t.muted : t.dim).child(space.name))
+          .when(Boolean(dir), (el) => el.child(div().text_color(t.dim).child(String(dir.total))))
+          .child(foldMark(!folded))
+          .child(div().flex_1()),
+      });
+      if (folded) continue;
+      const note = (key, text) => items.push({
+        h: H_SUB,
+        el: div().id(`${gid}-${key}`).h(H_SUB).px(8).flex().items_center().text_size(11.5).text_color(t.dim).child(text),
+      });
+      if (!dir) {
+        note("wait", this.sessError ? `Can't read sessions: ${this.sessError}` : "Reading sessions…");
+        continue;
+      }
+      if (dir.total === 0) {
+        note("none", "No pi sessions in this folder.");
+        continue;
+      }
+      const files = dir.files.slice(0, limit);
+      this.sessShown.push({ space: space.id, limit, shown: files.length, total: dir.total });
+      for (const { file, mtime } of files) {
+        const info = this.sessInfo[file] ?? {};
+        const id = info.id ?? idOfFile(file);
+        let addr = open.get(id);
+        if (!addr && info.name && info.cwd) {
+          const guess = unsaid.get(`${info.cwd}\n${info.name}`);
+          if (guess && !taken.has(guess)) addr = guess;
+        }
+        if (addr) taken.add(addr);
+        const term = addr ? byAddr.get(addr) : null;
+        // An agent with a pane is in agents(); one in the peek panel only has its terminal.
+        const agent = addr ? (byAgent.get(addr) ?? (term?.status ? { status: kidStatus(term, new Map()) } : null)) : null;
+        const pane = addr ? (byAgent.get(addr)?.pane ?? ps.find((p) => p.terminal === addr)?.pane) : null;
+        if (addr) delete this.launching[id];
+        const starting = !addr && now - (this.launching[id] ?? 0) < LAUNCH_GRACE_MS;
+        const meta = addr ? agentMeta(byAddr.get(addr)) : null;
+        // A pi with the session open says what it runs now; else what the file last said.
+        const provider = meta?.provider ?? info.provider;
+        const mark = providerOf({ provider });
+        const model = meta?.model ? shortModel(meta.model, mark) : info.model ? modelName(info.model, mark) : "";
+        const pic = providerIcon(mark, 13, t.muted);
+        // Effort and context as the Agents tab shows them: the open pi's, else the
+        // file's last reply, against the model's window from `pi --list-models`.
+        const level = meta ? meta.effort : info.effort;
+        const ctxN = meta?.ctx > 0 ? meta.ctx : !meta && info.ctx > 0 ? info.ctx : null;
+        const ctxMax = meta?.ctxMax ?? this.windows?.[`${info.provider}/${info.model}`] ?? null;
+        const ctx = ctxN ? tokens(ctxN) : null;
+        const full = ctx && ctxMax ? Math.min(1, ctxN / ctxMax) : null;
+        const title = info.name || info.first || "Untitled session";
+        const live = Boolean(addr);
+        const focusedRow = Boolean(agent?.focused);
+        items.push({
+          h: H_ROW,
+          id,
+          el: v_flex()
+            .id(`${gid}-${id}`)
+            .h(H_ROW)
+            .px(8)
+            .py(6)
+            .gap(2)
+            .flex_none()
+            .rounded(8)
+            .when(focusedRow, (el) => el.bg(t.selected))
+            .cursor_pointer()
+            .hover((s) => s.bg(t.hover))
+            .tooltip(info.name && info.first ? info.first : title)
+            .on_click((_e, cx) => {
+              if (pane) run("pane.focus", { pane });
+              else if (live) this.openSessionPeek(addr, space.id, title);
+              else if (!starting) this.openSession(cx, { id, space: space.id, folder: info.cwd || cwd, title });
+              cx.notify();
+            })
+            .child(h_flex()
+              .h(20)
+              .gap(9)
+              .items_center()
+              // The open pi's status in the provider icon's column; empty when none.
+              .child(h_flex().w(18).flex_none().items_center().justify_center()
+                .when(Boolean(agent), (el) => el.child(this.status(t, agent, true)))
+                .when(starting, (el) => el.child(svg("mods/workspace-chrome/spinner.svg").size(12).flex_none().text_color(t.dim).spin(900))))
+              .child(div().flex_1().min_w(0).truncate().text_size(13)
+                .when(live, (el) => el.font_medium())
+                .text_color(live ? t.foreground : t.muted)
+                .child(title)))
+            .child(h_flex()
+              .h(18)
+              .gap(9)
+              .items_center()
+              .text_size(12)
+              .child(h_flex().w(18).flex_none().items_center().justify_center()
+                .when(Boolean(pic), (el) => el.child(pic)))
+              .child(h_flex().flex_1().min_w(0).gap(4).items_center().font_family(mono).text_size(10.5)
+                .child(div().min_w(0).truncate().text_color(live ? t.muted : t.dim).child(model))
+                .when(Boolean(level), (el) => el.child(effort(level))))
+              .child(h_flex().flex_none().gap(7).items_center()
+                .when(Boolean(ctx), (el) => el.child(this.gauge(t, dark, `${gid}-${id}`, ctx, full, ctxMax, mono)))
+                .child(h_flex().w(26).flex_none().justify_end().items_center()
+                  .child(div().font_family(mono).text_size(10.5).text_color(t.dim).child(clock(mtime)))))),
+        });
+      }
+      if (files.length < dir.total) {
+        const left = dir.total - files.length;
+        items.push({
+          h: H_SUB,
+          el: h_flex()
+            .id(`${gid}-more`)
+            .h(H_SUB)
+            .px(8)
+            .gap(6)
+            .rounded(6)
+            .items_center()
+            .text_size(11.5)
+            .text_color(t.dim)
+            .cursor_pointer()
+            .hover((s) => s.bg(t.hover).text_color(t.foreground))
+            .on_click((_e, cx) => {
+              this.sessLimit[space.id] = limit + SESSION_PAGE;
+              cx.notify();
+            })
+            .child(svg("mods/workspace-chrome/chevron-down.svg").size(11).flex_none())
+            .child(`${Math.min(SESSION_PAGE, left)} more · ${left} left`),
+        });
+      }
+    }
+    return items;
+  }
+
+  scrollList(t, items, st, { collapsed, followAt = null, onEnd = null }) {
+    const now = Date.now();
+    let y = 0;
+    const tops = items.map((it) => {
+      const top = y;
+      y += it.h + GAP;
+      return top;
+    });
+    const total = Math.max(0, y - GAP);
+    const viewH = this.viewH ?? 0;
+    const maxOff = Math.max(0, total - viewH);
+    const clamp = (v) => Math.max(0, Math.min(v, maxOff));
+    st.offset = clamp(st.offset ?? 0);
+
+    if (followAt != null) {
+      const top = tops[followAt];
+      const h = items[followAt].h;
+      if (top < st.offset + FOLLOW_MARGIN || top + h > st.offset + viewH - FOLLOW_MARGIN) {
+        // To the middle when the row fits; else its top just under the edge.
+        st.offset = clamp(h + 2 * FOLLOW_MARGIN <= viewH ? top - (viewH - h) / 2 : top - FOLLOW_MARGIN);
+        st.animateUntil = now + SCROLL_MS + 50;
+      }
+    }
+    const motion = now < (st.animateUntil ?? 0) ? { duration: SCROLL_MS, easing: "ease-out" } : { duration: 0 };
+
+    // The scrollbar: a thumb sized by how much of the list shows; drag it to scroll.
+    const thumbH = total > 0 ? Math.max(24, (viewH * viewH) / total) : 0;
+    const thumbTop = maxOff > 0 ? (st.offset / maxOff) * (viewH - thumbH) : 0;
+    const zoom = settings().zoom || 1;
+    const scrollTo = (v, cx) => {
+      const next = clamp(v);
+      st.animateUntil = 0;
+      if (onEnd && maxOff > 0 && next >= maxOff - 2) onEnd(cx);
+      if (next === st.offset) return;
+      st.offset = next;
+      cx.notify();
+    };
+    return v_flex()
+      .id("ag-list")
+      .relative()
+      .flex_1()
+      .min_h(0)
+      .overflow_hidden()
+      .on_size_change((size, cx) => {
+        this.viewH = size.height / zoom;
+        cx.notify();
+      })
+      .on_scroll_wheel((e, cx) => scrollTo(st.offset - e.delta.y / zoom, cx))
+      .on_mouse_move((e, cx) => {
+        if (!this.drag) return;
+        const track = viewH - thumbH;
+        if (track > 0) scrollTo(this.drag.off + ((e.position.y - this.drag.y) / zoom) * (maxOff / track), cx);
+      })
+      .on_mouse_up("left", () => {
+        this.drag = null;
+      })
+      .on_hover((on) => {
+        if (!on) this.drag = null;
+      })
+      .child(v_flex()
+        .id("ag-content")
+        .absolute()
+        .left(0)
+        .right(0)
+        .top(-st.offset)
+        .transition("top", motion)
+        .px(collapsed ? 0 : 8)
+        .gap(GAP)
+        .children(items.map((it) => it.el)))
+      .when(maxOff > 0, (el) => el.child(div()
+        .id("ag-thumb")
+        .absolute()
+        .right(1)
+        .top(thumbTop)
+        .transition("top", motion)
+        .w(6)
+        .h(thumbH)
+        .rounded(3)
+        .bg(this.drag ? t.muted + "99" : t.dim + "66")
+        .hover((s) => s.bg(t.muted + "99"))
+        .on_mouse_down("left", (e, cx) => {
+          cx.stop_propagation();
+          this.drag = { y: e.position.y, off: st.offset };
+          st.animateUntil = 0;
+          cx.notify();
+        })));
   }
 }
