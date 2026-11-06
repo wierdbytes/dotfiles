@@ -1,6 +1,6 @@
 // Agents in grouped or priority views; parents take their most urgent sub-agent's place.
 // A viewed done agent stays in Done until left.
-// Each agent reads in two lines: its space's tile, its task and its status; then what
+// Each agent reads in two lines: its status and its task; then what
 // it runs with (the provider's mark, model and @effort from @wierdbytes/pi-herdr's
 // labels, else its program), its sub-agents and terminals, its context size and how
 // long it has been like this.
@@ -12,6 +12,12 @@ import { agentMeta, shortModel, providerOf, tokens, duration, nextTick, effortCo
 
 // The context gauge's width; a pi with no context yet keeps this much room.
 const GAUGE_W = 44;
+// Row heights in the list (px at zoom 1) and the gap between rows: the list
+// scrolls itself, so it places rows by these.
+const H_HEADER = 30, H_ROW = 52, H_SUB = 26, H_RAIL = 26, GAP = 1;
+// How long scrolling to the shown agent takes, and the room kept around it.
+const SCROLL_MS = 280;
+const FOLLOW_MARGIN = 8;
 
 function find(node, id) {
   if (node?.id === id) return node;
@@ -55,8 +61,6 @@ const SORTS = [
 const sortOf = () => SORTS.find((s) => s.id === shared("agents.sort")) ?? SORTS[0];
 const SECTION = { 4: "Needs you", 3: "Done", 2: "Working", 1: "Idle" };
 const SECTION_STATUS = { 4: "blocked", 3: "done", 2: "working" };
-// The spaces sidebar's tile colors, so a space's tile reads the same in both lists.
-const MARK = { ansi6: "#22a99a", ansi3: "#e3814f", ansi4: "#5b8def", ansi5: "#8b7cf6", ansi2: "#3fae6a", ansi1: "#d9649a" };
 const plural = (n, one) => `${n} ${one}${n === 1 ? "" : "s"}`;
 
 // The agent's icon from the app's program table: a one-color glyph or a picture.
@@ -298,7 +302,11 @@ export default class Agents extends View {
     if (props()?.sortMenu) return this.sortMenu(t);
     const collapsed = narrow();
     const sort = sortOf();
+    // Only the shown space's agents, like Mail's unread filter.
+    const spaceOnly = shared("agents.spaceOnly") === true;
+    const activeSpace = spaces().find((s) => s.active);
     let list = agents();
+    if (spaceOnly) list = list.filter((a) => a.space === activeSpace?.id);
     this.listed = new Map(list.map((a) => [a.address, a.status]));
     const all = terminals();
     const byAddr = new Map(all.map((x) => [x.address, x]));
@@ -332,7 +340,6 @@ export default class Agents extends View {
       return duration(now - since);
     };
 
-    const colors = shared("space.colors") ?? {};
     const mono = settings().font_family ?? "JetBrains Mono";
     const dark = settings().dark !== false;
 
@@ -355,30 +362,11 @@ export default class Agents extends View {
       return a.program?.name || a.tab_name || a.address;
     };
 
-    // The space's tile, as the spaces sidebar draws it.
-    const tile = (a) => {
-      const c = colors[a.space] ?? "ansi6";
-      const fill = c.startsWith("#") ? c : (MARK[c] ?? t[c] ?? t.dim);
-      return h_flex()
-        .id(`tile-${a.address}`)
-        .size(18)
-        .flex_none()
-        .rounded(5)
-        .bg(fill)
-        .items_center()
-        .justify_center()
-        .text_size(10.5)
-        .font_bold()
-        .text_color("#ffffff")
-        .tooltip(a.space_name || "")
-        .child([...(a.space_name || "?")][0].toUpperCase());
-    };
-
     const withKids = (a, i) => {
       const subs = collapsed ? [] : trees.get(a.address);
-      const r = row(a, i, subs);
+      const r = { el: row(a, i, subs), h: collapsed ? H_RAIL : H_ROW, addr: a.address };
       if (!this.open.has(a.address) || subs.length === 0) return [r];
-      return [r, ...subs.map((s) => this.subRow(t, s, shown, byPriority))];
+      return [r, ...subs.map((s) => ({ el: this.subRow(t, s, shown, byPriority), h: H_SUB }))];
     };
 
     const row = (a, i, subs = []) => {
@@ -442,6 +430,7 @@ export default class Agents extends View {
 
       return v_flex()
         .id(`ag-${a.address}`)
+        .h(H_ROW)
         .px(8)
         .py(6)
         .gap(2)
@@ -460,9 +449,9 @@ export default class Agents extends View {
           .h(20)
           .gap(9)
           .items_center()
-          .child(tile(a))
-          .child(div().flex_1().min_w(0).truncate().text_size(13).when(!quiet, (el) => el.font_medium()).text_color(quiet ? t.muted : t.foreground).child(label(a)))
-          .child(this.status(t, a, byPriority && !isPinned)))
+          // The status sits where the space tile was, in the provider icon's column.
+          .child(h_flex().w(18).flex_none().items_center().justify_center().child(this.status(t, a, true)))
+          .child(div().flex_1().min_w(0).truncate().text_size(13).when(!quiet, (el) => el.font_medium()).text_color(quiet ? t.muted : t.foreground).child(label(a))))
         .child(h_flex()
           .h(18)
           .gap(9)
@@ -538,10 +527,105 @@ export default class Agents extends View {
           .when(!byPriority && top && top !== "idle", (el) => el.child(this.status(t, { status: top }, true)))
           .child(svg("mods/workspace-chrome/chevron-right.svg").size(11).flex_none().text_color(t.dim)));
     };
-    const rows = collapsed
+    const items = collapsed
       ? list.flatMap(withKids)
-      : groups.flatMap((g) => [header(g), ...(this.folded.has(g.id) ? [] : g.members.flatMap(withKids))]);
+      : groups.flatMap((g) => [{ el: header(g), h: H_HEADER }, ...(this.folded.has(g.id) ? [] : g.members.flatMap(withKids))]);
     this.due = due;
+
+    // The list scrolls itself: a native scroll area can't be moved from code,
+    // and following the shown agent needs that. Every row has a fixed height,
+    // so where each one sits is known without measuring.
+    let y = 0;
+    const tops = items.map((it) => {
+      const top = y;
+      y += it.h + GAP;
+      return top;
+    });
+    const total = Math.max(0, y - GAP);
+    const viewH = this.viewH ?? 0;
+    const maxOff = Math.max(0, total - viewH);
+    const clamp = (v) => Math.max(0, Math.min(v, maxOff));
+    this.offset = clamp(this.offset ?? 0);
+    this.maxOff = maxOff;
+
+    // A new space or a new agent in focus: bring its row into view, animated.
+    const current = list.find((a) => a.focused);
+    const followKey = `${activeSpace?.id ?? ""}|${current?.address ?? ""}`;
+    if (this.viewH && followKey !== this.followKey) {
+      this.followKey = followKey;
+      const at = current ? items.findIndex((it) => it.addr === current.address) : -1;
+      if (at >= 0) {
+        const top = tops[at];
+        const h = items[at].h;
+        if (top < this.offset + FOLLOW_MARGIN || top + h > this.offset + viewH - FOLLOW_MARGIN) {
+          // To the middle when the row fits; else its top just under the edge.
+          this.offset = clamp(h + 2 * FOLLOW_MARGIN <= viewH ? top - (viewH - h) / 2 : top - FOLLOW_MARGIN);
+          this.animateUntil = now + SCROLL_MS + 50;
+        }
+      }
+    }
+    const motion = now < (this.animateUntil ?? 0) ? { duration: SCROLL_MS, easing: "ease-out" } : { duration: 0 };
+
+    // The scrollbar: a thumb sized by how much of the list shows; drag it to scroll.
+    const thumbH = total > 0 ? Math.max(24, (viewH * viewH) / total) : 0;
+    const thumbTop = maxOff > 0 ? (this.offset / maxOff) * (viewH - thumbH) : 0;
+    const zoom = settings().zoom || 1;
+    const scrollTo = (v, cx) => {
+      const next = clamp(v);
+      this.animateUntil = 0;
+      if (next === this.offset) return;
+      this.offset = next;
+      cx.notify();
+    };
+    const listView = v_flex()
+      .id("ag-list")
+      .relative()
+      .flex_1()
+      .min_h(0)
+      .overflow_hidden()
+      .on_size_change((size, cx) => {
+        this.viewH = size.height / zoom;
+        cx.notify();
+      })
+      .on_scroll_wheel((e, cx) => scrollTo(this.offset - e.delta.y / zoom, cx))
+      .on_mouse_move((e, cx) => {
+        if (!this.drag) return;
+        const track = viewH - thumbH;
+        if (track > 0) scrollTo(this.drag.off + ((e.position.y - this.drag.y) / zoom) * (maxOff / track), cx);
+      })
+      .on_mouse_up("left", () => {
+        this.drag = null;
+      })
+      .on_hover((on) => {
+        if (!on) this.drag = null;
+      })
+      .child(v_flex()
+        .id("ag-content")
+        .absolute()
+        .left(0)
+        .right(0)
+        .top(-this.offset)
+        .transition("top", motion)
+        .px(collapsed ? 0 : 8)
+        .gap(GAP)
+        .children(items.map((it) => it.el)))
+      .when(maxOff > 0, (el) => el.child(div()
+        .id("ag-thumb")
+        .absolute()
+        .right(1)
+        .top(thumbTop)
+        .transition("top", motion)
+        .w(6)
+        .h(thumbH)
+        .rounded(3)
+        .bg(this.drag ? t.muted + "99" : t.dim + "66")
+        .hover((s) => s.bg(t.muted + "99"))
+        .on_mouse_down("left", (e, cx) => {
+          cx.stop_propagation();
+          this.drag = { y: e.position.y, off: this.offset };
+          this.animateUntil = 0;
+          cx.notify();
+        })));
 
     return v_flex()
       .size_full()
@@ -561,7 +645,23 @@ export default class Agents extends View {
             .items_center()
             .justify_between()
             .child(div().text_size(11.5).font_medium().text_color(t.dim).child("Agents"))
-            .child(
+            .child(h_flex().gap(10).items_center()
+              .child(
+                h_flex()
+                  .id("ag-filter")
+                  .size(14)
+                  .items_center()
+                  .justify_center()
+                  .text_color(t.dim)
+                  .hover((s) => s.text_color(t.foreground))
+                  .on_click(() => setShared("agents.spaceOnly", !spaceOnly))
+                  .tooltip(spaceOnly ? `Showing ${activeSpace?.name ?? "this space"}'s agents · Show all` : "Show only this space's agents")
+                  .when(spaceOnly, (el) => el.child(
+                    h_flex().size(12).rounded_full().bg(t.accent).items_center().justify_center()
+                      .child(svg("mods/wierd-agents/filter-lines.svg").size(12).text_color(t.accent_foreground))))
+                  .when(!spaceOnly, (el) => el.child(svg("mods/wierd-agents/filter.svg").size(14))),
+              )
+              .child(
               div()
                 .id("ag-sort")
                 .text_size(11)
@@ -570,13 +670,16 @@ export default class Agents extends View {
                 .on_click(() => openOverlay({ mod: "wierd-agents", kind: "popup", width: 200, height: 140, props: { sortMenu: true } }))
                 .tooltip(`Sort agents: ${sort.label}`)
                 .child(svg(`mods/workspace-chrome/${sort.icon}.svg`).size(14)),
-            ),
+            )),
         ),
       )
-      .when(list.length === 0 && !collapsed, (el) =>
+      .when(list.length === 0 && !collapsed && spaceOnly, (el) =>
+        el.child(div().px(16).text_size(12).text_color(t.dim).child(`No agents in ${activeSpace?.name ?? "this space"}.`)),
+      )
+      .when(list.length === 0 && !collapsed && !spaceOnly, (el) =>
         el.child(div().px(12).text_size(12).text_color(t.dim).child("No agent status yet. Agents show up here when they report their status. Older versions and agents inside tmux may not.")),
       )
-      .child(v_flex().id("ag-list").flex_1().min_h(0).px(collapsed ? 0 : 8).gap(1).overflow_y_scrollbar().mode("always").children(rows))
+      .child(listView)
       .when(collapsed, (el) =>
         el.child(
           h_flex()
