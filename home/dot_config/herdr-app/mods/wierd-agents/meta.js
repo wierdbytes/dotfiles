@@ -23,6 +23,10 @@ export function agentMeta(term) {
     ctx: num("agent.ctx"),
     ctxMax: num("agent.ctx_max"),
     subagents: num("agent.subagents") ?? 0,
+    // When the prompt cache expires (epoch ms) and how long it lives from a
+    // refresh (ms); pi-herdr 0.3+.
+    cacheUntil: num("agent.cache_until"),
+    cacheTtl: num("agent.cache_ttl"),
   };
 }
 
@@ -138,6 +142,31 @@ export function effortColor(effort, t, dark) {
 export function ctxColor(full, t, dark) {
   const pct = Math.floor((full ?? 0) * 100);
   const [hex, ansi] = pct > 80 ? ["#f7768e", "ansi1"] : pct > 60 ? ["#e0af68", "ansi3"] : ["#9ece6a", "ansi2"];
+  return dark ? hex : (t[ansi] ?? hex);
+}
+
+// The share of the prompt cache's lifetime left at `at` (1 just refreshed, 0
+// expiring), or null once it's gone or not known.
+export function cacheLeft(until, ttl, at) {
+  if (!until || !ttl || at >= until) return null;
+  return Math.max(0, Math.min(1, (until - at) / ttl));
+}
+
+// The prompt cache's last seconds, when pi-statusline's countdown turns yellow.
+export const CACHE_WARN_MS = 30000;
+
+// The prompt cache by when it expires: "warm", "ending" (its last 30s), or null
+// (gone, or not known).
+export function cacheState(until, now) {
+  if (!until || now >= until) return null;
+  return until - now <= CACHE_WARN_MS ? "ending" : "warm";
+}
+
+// The context size's color by the cache: green while warm, yellow at its end,
+// muted once gone. The statusline's colors on dark themes, ANSI ones on light.
+export function cacheColor(state, t, dark) {
+  if (!state) return t.muted;
+  const [hex, ansi] = state === "warm" ? ["#9ece6a", "ansi2"] : ["#e0af68", "ansi3"];
   return dark ? hex : (t[ansi] ?? hex);
 }
 

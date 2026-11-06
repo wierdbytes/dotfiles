@@ -4,14 +4,16 @@
 // it runs with (the provider's mark, model and @effort from @wierdbytes/pi-herdr's
 // labels, else its program), its sub-agents and terminals, its context size and how
 // long it has been like this. Under that line, a thin bar fills with the share of
-// the model's window in use, green, then yellow past 60% and red past 80%.
+// the model's window in use, green, then yellow past 60% and red past 80%; a tick
+// on it slides from its right end to its left as the prompt cache runs out, and
+// the context size reads green while the cache is warm, yellow in its last 30s.
 // The Sessions tab lists pi's sessions per space; one is opened in a peek panel
 // (Keep: a tab of its space; closing: that pi ends), or gone to if a pi has it open.
 
 import { View, div, image, svg } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
 import { agents, terminals, focused, spaces, panes, run, theme, shared, setShared, setAgentOrder, openOverlay, closeOverlay, props, window, layout, settings, exec, hc, home, appHome, notify } from "herdr";
-import { agentMeta, shortModel, providerOf, tokens, duration, nextTick, effortColor, ctxColor, maxGradient } from "./meta.js";
+import { agentMeta, shortModel, providerOf, tokens, duration, nextTick, effortColor, ctxColor, maxGradient, cacheLeft, cacheState, cacheColor, CACHE_WARN_MS } from "./meta.js";
 
 // The context size's slot ("69.2k" in the mono face); a pi with no context yet
 // keeps this much room, so the badges don't jump when the number shows up.
@@ -20,6 +22,13 @@ const CTX_W = 34;
 // thickness, how far it sits above the row's edge, and the fill's opacity (hex
 // alpha over the track): the statusline's colors, toned down for a quiet list.
 const BAR_H = 2, BAR_BOTTOM = 3, FILL_ALPHA = "99";
+// The cache tick: its width, how far it rises above the bar, and how often the
+// list aims it anew (it slides between those aims natively, so the list redraws
+// only this often).
+const TICK_W = 2, TICK_UP = 4, TICK_STEP = 5000;
+// The list's width less the tick's lane: the list's padding (8 + 8), the bar's
+// inset in its row (8 + 8) and the tick's own width.
+const TICK_LANE_INSET = 32 + TICK_W;
 // Row heights in the list (px at zoom 1) and the gap between rows: the list
 // scrolls itself, so it places rows by these.
 const H_HEADER = 30, H_ROW = 52, H_SUB = 26, H_RAIL = 26, GAP = 1;
@@ -145,6 +154,11 @@ export default class Agents extends View {
     this.sessLimit = {};
     this.launching = {};
     this.windows = JSON.parse(localStorage.getItem("windows") ?? "null");
+    // Each session's prompt cache expiry, as its pi last said (see rememberCaches).
+    this.sessCache = JSON.parse(localStorage.getItem("caches") ?? "{}");
+    localStorage.removeItem("cache");
+    // Where each cache tick was last aimed, to tell a refresh (a jump back to the right).
+    this.tickAim = {};
     cx.timer.every(1000, (cx) => {
       if (shared("agents.view") !== "sessions" || narrow()) return;
       if (this.sessWant !== this.sessHave || Date.now() - (this.sessAt ?? 0) > SESSION_POLL_MS) this.refreshSessions(cx);
@@ -429,9 +443,11 @@ export default class Agents extends View {
       .child(div().min_w(14).text_center().child(String(n)));
   }
 
-  // The context size as plain text in a fixed slot; the bar under the row says
-  // how full the window is.
-  ctxText(t, addr, ctx, full, max, mono) {
+  // The context size as plain text in a fixed slot, colored by the prompt cache
+  // (`tint`: green while warm, yellow in its last 30s, muted once gone, and what
+  // the tooltip adds); the bar under the row says how full the window is.
+  ctxText(t, addr, ctx, full, max, mono, tint) {
+    const size = full != null ? `${ctx} of ${tokens(max)} context · ${Math.floor(full * 100)}%` : `${ctx} context`;
     return div()
       .id(`ctx-${addr}`)
       .flex_none()
@@ -439,16 +455,39 @@ export default class Agents extends View {
       .text_right()
       .font_family(mono)
       .text_size(10.5)
-      .text_color(t.muted)
-      .tooltip(full != null ? `${ctx} of ${tokens(max)} context · ${Math.floor(full * 100)}%` : `${ctx} context`)
+      .text_color(tint?.color ?? t.muted)
+      .tooltip(tint?.note ? `${size} · ${tint.note}` : size)
       .child(ctx);
+  }
+
+  // Remembers each session's cache ({until, ttl}) while a pi has it open: once
+  // that pi ends, nothing refreshes the cache, so the Sessions tab still knows
+  // how long it lives. Only caches still warm are kept.
+  rememberCaches(all, now) {
+    let dirty = false;
+    for (const term of all) {
+      const id = term.labels?.["agent.session"];
+      const meta = id && term.state === "live" ? agentMeta(term) : null;
+      if (!meta) continue;
+      const warm = meta.cacheUntil > now && meta.cacheTtl > 0;
+      const had = this.sessCache[id];
+      if (warm ? had?.until === meta.cacheUntil && had?.ttl === meta.cacheTtl : !had) continue;
+      if (warm) this.sessCache[id] = { until: meta.cacheUntil, ttl: meta.cacheTtl };
+      else delete this.sessCache[id];
+      dirty = true;
+    }
+    if (!dirty) return;
+    for (const [id, c] of Object.entries(this.sessCache)) if (!(c?.until > now)) delete this.sessCache[id];
+    localStorage.setItem("caches", JSON.stringify(this.sessCache));
   }
 
   // A thin bar across the row's bottom padding, like the limits mod's: grey track,
   // the used share filled in one color (green, yellow or red as a whole, like
   // pi-statusline's bar), softened. Placed over the row, so the lines above never
   // move. No `full` (the model's window is unknown): the track alone.
-  ctxBar(t, dark, full) {
+  // `tick` ({left, ms}): the prompt cache's tick, at `left` (0..1) of the bar,
+  // sliding there over `ms`; null when the cache is gone or not known.
+  ctxBar(t, dark, full, key, tick) {
     const color = ctxColor(full, t, dark);
     const soft = /^#[0-9a-f]{6}$/i.test(color) ? `${color}${FILL_ALPHA}` : color;
     return div()
@@ -467,7 +506,22 @@ export default class Agents extends View {
         .min_w(2)
         .w(`${(full * 100).toFixed(1)}%`)
         .rounded(1)
-        .bg(soft)));
+        .bg(soft)))
+      // Like the limits mod's tick, but rising from the bar only. Its lane is the
+      // bar less its width, so at 100% the tick is still on the bar. In px once the
+      // list's width is known: a transition moves px, not %.
+      .when(Boolean(tick), (el) => el.child(div()
+        .id(`tick-${key}`)
+        .absolute()
+        .bottom(0)
+        .when(this.viewW > 0, (el) => el
+          .left(Math.round(tick.left * (this.viewW - TICK_LANE_INSET) * 100) / 100)
+          .transition("left", { duration: tick.ms, easing: "linear" }))
+        .when(!(this.viewW > 0), (el) => el.left(`${(tick.left * 100).toFixed(2)}%`))
+        .w(TICK_W)
+        .h(BAR_H + TICK_UP)
+        .bg(t.foreground)
+        .opacity(0.5)));
   }
 
   render(cx) {
@@ -489,6 +543,7 @@ export default class Agents extends View {
     this.migratePins(all);
     const shown = focused()?.agent;
     const now = Date.now();
+    this.rememberCaches(all, now);
     this.track(list, now);
     this.hold(list);
     const byPriority = sort.id === "priority";
@@ -510,10 +565,45 @@ export default class Agents extends View {
 
     // The earliest moment a shown time reads differently; the timer redraws then.
     let due = null;
+    const wake = (at) => {
+      if (due == null || at < due) due = at;
+    };
     const clock = (since) => {
-      const next = nextTick(since, now);
-      if (due == null || next < due) due = next;
+      wake(nextTick(since, now));
       return duration(now - since);
+    };
+    // The prompt cache's tick (pi-herdr's agent.cache_until / agent.cache_ttl):
+    // the share of its lifetime left, from the bar's right end (just refreshed)
+    // to its left (expiring); gone once it expires. Each render aims it at where
+    // it will be at the next TICK_STEP boundary (the last one: the expiry) and it
+    // slides there natively; the redraw at that boundary aims it further. Other
+    // redraws keep the same aim, so a slide is never retargeted. A refresh, a new
+    // lifetime, or a pause in redraws jumps it to where it belongs.
+    const cacheTick = (key, cache) => {
+      const until = cache?.until, ttl = cache?.ttl;
+      if (cacheLeft(until, ttl, now) == null) {
+        delete this.tickAim[key];
+        return null;
+      }
+      const next = Math.min(until, (Math.floor(now / TICK_STEP) + 1) * TICK_STEP);
+      wake(next);
+      const aim = this.tickAim[key];
+      if (aim?.next === next && aim.until === until && aim.ttl === ttl) return aim;
+      const left = cacheLeft(until, ttl, next) ?? 0;
+      const follows = aim?.until === until && aim.ttl === ttl && left <= aim.left && aim.left - left <= (1.5 * TICK_STEP) / ttl;
+      return (this.tickAim[key] = { until, ttl, next, left, ms: follows ? Math.max(0, next - now) : 0 });
+    };
+    // The context size's color by the cache's expiry, and a redraw when it
+    // turns yellow and when it goes.
+    const two = (n) => String(n).padStart(2, "0");
+    const cacheTint = (cache) => {
+      const until = cache?.until;
+      const state = cacheState(until, now);
+      if (state === "warm") wake(until - CACHE_WARN_MS);
+      if (state) wake(until);
+      const at = until ? new Date(until) : null;
+      const note = !until ? null : state ? `cache till ${two(at.getHours())}:${two(at.getMinutes())}:${two(at.getSeconds())}` : "cache expired";
+      return { color: cacheColor(state, t, dark), note };
     };
 
     const mono = settings().font_family ?? "JetBrains Mono";
@@ -603,6 +693,7 @@ export default class Agents extends View {
       // No context yet (a fresh pi before its first prompt): no number, an empty bar.
       const ctx = meta?.ctx > 0 ? tokens(meta.ctx) : null;
       const full = ctx && meta?.ctxMax ? Math.min(1, meta.ctx / meta.ctxMax) : null;
+      const cache = meta ? { until: meta.cacheUntil, ttl: meta.cacheTtl } : null;
 
       return v_flex()
         .id(`ag-${a.address}`)
@@ -652,7 +743,7 @@ export default class Agents extends View {
             .when(kidTerms > 0, (el) => el.child(this.badge(t, `terms-${a.address}`, "terminal", kidTerms, plural(kidTerms, "terminal"), toggle, open)))
             // A pi keeps the number's place before its first prompt, so the
             // badges don't jump when it shows up.
-            .when(Boolean(ctx), (el) => el.child(this.ctxText(t, a.address, ctx, full, meta.ctxMax, mono)))
+            .when(Boolean(ctx), (el) => el.child(this.ctxText(t, a.address, ctx, full, meta.ctxMax, mono, cacheTint(cache))))
             .when(!ctx && Boolean(meta), (el) => el.child(div().w(CTX_W).flex_none()))
             // The clock and the pin share one fixed slot: hovering swaps them in place.
             .child(h_flex()
@@ -667,7 +758,7 @@ export default class Agents extends View {
                 .text_color(t.dim)
                 .child(clock(when)))))))
         // Every pi has the bar, filled once it knows its context and window.
-        .when(Boolean(meta), (el) => el.child(this.ctxBar(t, dark, full)));
+        .when(Boolean(meta), (el) => el.child(this.ctxBar(t, dark, full, a.address, cacheTick(a.address, cache))));
     };
 
     // Groups in list order: spaces (grouped) or priority sections. Agents of a
@@ -722,7 +813,7 @@ export default class Agents extends View {
     }
 
     const listView = view === "sessions"
-      ? this.scrollList(t, this.sessionItems(t, { now, clock, mono, dark, effort, spaceOnly, activeSpace, byAddr }), this.scroll.sessions, {
+      ? this.scrollList(t, this.sessionItems(t, { now, clock, cacheTick, cacheTint, mono, dark, effort, spaceOnly, activeSpace, byAddr }), this.scroll.sessions, {
         collapsed,
         // At the end of the list, the last space's next sessions come in.
         onEnd: (cx) => this.moreAtEnd(cx),
@@ -896,7 +987,7 @@ export default class Agents extends View {
   // The Sessions tab's rows: per space a header, its sessions newest first, and
   // a row for more. A session pi has open shows that agent's status and goes to
   // it; one nobody has open starts `pi --session <id>` in a new tab there.
-  sessionItems(t, { now, clock, mono, dark, effort, spaceOnly, activeSpace, byAddr }) {
+  sessionItems(t, { now, clock, cacheTick, cacheTint, mono, dark, effort, spaceOnly, activeSpace, byAddr }) {
     const groups = this.sessionSpaces(spaceOnly, activeSpace);
     this.sessReq = groups.map(({ cwd, limit }) => ({ cwd, limit }));
     this.sessWant = JSON.stringify(this.sessReq);
@@ -992,6 +1083,8 @@ export default class Agents extends View {
         const ctxMax = meta?.ctxMax ?? this.windows?.[`${info.provider}/${info.model}`] ?? null;
         const ctx = ctxN ? tokens(ctxN) : null;
         const full = ctx && ctxMax ? Math.min(1, ctxN / ctxMax) : null;
+        // The open pi's cache; a closed session's as its pi last said (rememberCaches).
+        const cache = meta ? { until: meta.cacheUntil, ttl: meta.cacheTtl } : this.sessCache[id] ?? null;
         const title = info.name || info.first || "Untitled session";
         const live = Boolean(addr);
         const focusedRow = Boolean(agent?.focused);
@@ -1041,11 +1134,11 @@ export default class Agents extends View {
                 .child(div().min_w(0).truncate().text_color(live ? t.muted : t.dim).child(model))
                 .when(Boolean(level), (el) => el.child(effort(level))))
               .child(h_flex().flex_none().gap(7).items_center()
-                .when(Boolean(ctx), (el) => el.child(this.ctxText(t, `${gid}-${id}`, ctx, full, ctxMax, mono)))
+                .when(Boolean(ctx), (el) => el.child(this.ctxText(t, `${gid}-${id}`, ctx, full, ctxMax, mono, cacheTint(cache))))
                 .child(h_flex().w(26).flex_none().justify_end().items_center()
                   .child(div().font_family(mono).text_size(10.5).text_color(t.dim).child(clock(mtime))))))
             // Every session is a pi's: the bar shows on each, filled when its window is known.
-            .child(this.ctxBar(t, dark, full)),
+            .child(this.ctxBar(t, dark, full, `${gid}-${id}`, cacheTick(`${gid}-${id}`, cache))),
         });
       }
       if (files.length < dir.total) {
@@ -1120,6 +1213,8 @@ export default class Agents extends View {
       .overflow_hidden()
       .on_size_change((size, cx) => {
         this.viewH = size.height / zoom;
+        // The cache tick slides in px (a transition doesn't move a % value).
+        this.viewW = size.width / zoom;
         cx.notify();
       })
       .on_scroll_wheel((e, cx) => scrollTo(st.offset - e.delta.y / zoom, cx))
