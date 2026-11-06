@@ -1,25 +1,51 @@
-// The Spaces panel (this mod with props {panel: "spaces"}), from Herdr's shipped
-// `spaces` mod: stable colored avatars, worktrees under their checkout, grouped by
-// machine when more than one is known. After a space's name, the repo its first
-// terminal is in now, only where unusual: branch, ahead/behind. At the row's end,
-// its agents by status, most urgent first as the Agents tab's priority sort reads
-// (needs you, done, working), each with the Agents tab's mark and a count; sub-agents
-// without a pane (hc run) count with their parent's space. Idle ones aren't counted:
-// a space whose agents are all idle, or that has none, shows nothing there. A folded
-// machine's header adds up its spaces'. The list scrolls itself as the Agents tab's
-// does (scroll.js) and brings the shown space into view.
-// Click to switch, right-click for its menu, drag to reorder.
+// The sidebar's one panel: spaces, each with its tabs under it (agents.js), from
+// Herdr's shipped `spaces` mod: stable colored avatars, worktrees under their
+// checkout, grouped by machine when more than one is known. After a space's name,
+// the repo its first terminal is in now, only where unusual: branch, ahead/behind.
+// At the row's end, two buttons: its pi sessions (the panel turns into them, with
+// Back on top) and v / > to show or hide its tabs. Hidden, the row says what its
+// agents are up to by status, most urgent first (needs you, done, working), each
+// mark with a count; sub-agents without a pane (hc run) count with their parent's
+// space, idle ones aren't counted. A folded machine's header adds up its spaces'.
+// Under a space its tabs: those with agents first (pinned, then by urgency), each
+// agent a row, then the rest; a tab's other panes follow it in short lines, joined
+// by a line on the left. Each space is a card: its row is the header (a lighter
+// tone, the shown space's in the accent), its tabs the body. The list scrolls
+// itself (scroll.js) and brings the focused pane, else the shown space, into view.
+// Click a space to switch, right-click for its menu, drag to reorder.
 
 import { div, svg } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
-import { spaces, machines, panes, agents, terminals, run, openOverlay, exec, hc, theme, shared, setShared, watchFolder, window } from "herdr";
-import { narrow, place, statusMark, isAgent, kidStatus } from "./kit.js";
-import { scrollList } from "./scroll.js";
+import { spaces, machines, panes, agents, terminals, focused, run, openOverlay, exec, hc, theme, shared, setShared, setAgentOrder, watchFolder, window } from "herdr";
+import { narrow, place, statusMark, isAgent, kidStatus, toggleSidebar } from "./kit.js";
+import { scrollList, GAP } from "./scroll.js";
+import { Agents, BAR_INSET, BAR_BOTTOM } from "./agents.js";
 
 // Row heights (px at zoom 1): the list places rows by these. A machine's header,
 // a space, a worktree under its repo, a note (Loading…, New space there), a space
 // on the rail, and the room after the last row.
-const H_MACHINE = 26, H_SPACE = 30, H_TREE = 28, H_NOTE = 28, H_RAIL = 26, H_END = 8;
+const H_MACHINE = 26, H_SPACE = 34, H_TREE = 32, H_NOTE = 28, H_RAIL = 26, H_END = 8;
+// A space's card: its corners, the room inside around its agents, the room
+// between cards, and how much a row inside is narrower than the list's (the
+// card's sides: border and padding).
+const CARD_R = 10, CARD_PAD = 4, CARD_GAP = 6;
+const CARD_INSET = 2 * (1 + CARD_PAD);
+// The room under the last row: its context bar ends as far above the card's
+// bottom edge as it starts from the card's left edge.
+const CARD_END = CARD_PAD + BAR_INSET - BAR_BOTTOM;
+// How far a split tab's joining line stays from its first and last rows' edges.
+// The joining line is a bracket, [, traced along the rows' own highlight: from
+// the first row's top to the last row's bottom, down their left edge, its
+// corners theirs (agents.js rounds every row 8). Its stroke, and how far its
+// ends reach in along the rows' top and bottom edges (past the corners).
+const ROW_R = 8;
+const RAIL_W = 2, RAIL_TICK = 10;
+// A color with an alpha, where it's a plain #rrggbb.
+const alpha = (c, a) => (/^#[0-9a-f]{6}$/i.test(c ?? "") ? `${c}${a}` : c);
+// The shown space's header tone (the accent, faint), and a split tab's joining
+// line in the same blue, stronger: at 2px the faint one doesn't show.
+const activeTint = (t) => alpha(t.accent, "26");
+const railColor = (t) => alpha(t.accent, "80");
 const rowHeight = ({ tree }) => (tree ? H_TREE : H_SPACE);
 const where = (s, ps) => JSON.stringify([s.machine ?? null, place(s, ps)]);
 const base = (path) => path.replace(/\/+$/, "").split("/").pop();
@@ -30,6 +56,8 @@ const FALLBACK = 60000;
 // the Agents panel is a copy of this mod too, writing its own.
 const FOLDED = "wierd.spaces.folded";
 const RECONNECTING = "wierd.spaces.reconnecting";
+// Spaces whose agents are hidden (their ids).
+const CLOSED = "wierd.spaces.closed";
 
 // What a stored color name looks like on an avatar (the same in every mod
 // that draws space avatars): one strong color per hue, light and dark alike.
@@ -81,7 +109,7 @@ const sum = (list) => {
 };
 
 export class Spaces {
-  init(_props, cx) {
+  init(props, cx) {
     this.git = {}; // where() -> { name, branch, ahead, behind, repo, linked }, null: not a repo
     this.checked = {}; // where() -> when it was last looked at
     this.unsure = new Set(); // where()s git couldn't answer for (a machine away)
@@ -97,12 +125,18 @@ export class Spaces {
     this.pressed = null;
     this.over = null;
     this.machines = [];
-    // The list's scroll position, and the space it last brought into view.
-    this.scroll = {};
+    // Each list's scroll position (spaces and agents; a space's sessions), and
+    // the space and agent it last brought into view.
+    this.scroll = { list: {}, sessions: {} };
     this.followKey = null;
     this.reconnecting = { ...(shared(RECONNECTING) ?? {}) };
     for (const [name, state] of Object.entries(this.reconnecting)) this.reconnecting[name] = { ...state, busy: false };
     this.folded = new Set(shared(FOLDED) ?? []);
+    this.closed = new Set(shared(CLOSED) ?? []);
+    // The agents under each space, and a space's sessions: their rows, state and timers.
+    this.agents = new Agents();
+    this.agents.owner = this;
+    this.agents.init(props, cx);
     this.refreshMachines(cx);
     cx.timer.every(15000, cx => this.refreshMachines(cx));
     // `git status` walks the whole tree, on another machine a process there:
@@ -116,6 +150,10 @@ export class Spaces {
 
   saveReconnecting() {
     setShared(RECONNECTING, this.reconnecting);
+  }
+
+  saveClosed() {
+    setShared(CLOSED, [...this.closed]);
   }
 
   checkNew(cx) {
@@ -361,13 +399,38 @@ export class Spaces {
         .child(div().text_color(s.id === "blocked" ? t.blocked : t.muted).child(String(c[s.id])))));
   }
 
-  // The rows, under a header per machine once one isn't this computer: [{ el, h, id? }]
-  // (`id`: a space's, for bringing it into view).
-  grouped(t, collapsed, counts) {
+  // The rows, under a header per machine once one isn't this computer: each space
+  // and, unless hidden, its tabs: [{ el, h, id?, pane? }] (`id`: a space's, `pane`:
+  // a row's pane, for bringing them into view). `R`: agents.prepare()'s.
+  // Sets `this.order`: the agents in the list's order, hidden ones too.
+  grouped(t, collapsed, counts, R) {
     const rows = this.ordered();
-    const draw = (r) => collapsed
-      ? { el: this.compact(r, t, counts[r.w.id]), h: H_RAIL, id: r.w.id }
-      : { el: this.row(r, t, counts[r.w.id]), h: rowHeight(r), id: r.w.id };
+    const ps = panes();
+    const order = [];
+    this.order = order;
+    const listed = (r) => order.push(...(R.groups.get(r.w.id) ?? []).flatMap((g) => g.agents));
+    const draw = (r) => {
+      if (collapsed) return [{ el: this.compact(r, t, counts[r.w.id]), h: H_RAIL, id: r.w.id }];
+      const groups = R.groups.get(r.w.id) ?? [];
+      const closed = this.closed.has(r.w.id);
+      const sessions = Boolean(this.agents.sessionPlace(r.w, ps));
+      const open = !closed && groups.length > 0;
+      const head = this.row(r, t, counts[r.w.id], { tabs: groups.length, closed, sessions, only: !open });
+      const after = { el: div().h(CARD_GAP).flex_none(), h: CARD_GAP };
+      if (!open) return [{ ...this.piece(t, "only", rowHeight(r), head), id: r.w.id }, after];
+      return [
+        { ...this.piece(t, "head", rowHeight(r), head), id: r.w.id },
+        this.piece(t, "side", CARD_PAD),
+        ...groups.flatMap((g) => {
+          // A tab split in several panes: a line down the left joins its rows.
+          const its = this.agents.groupItems(R, g);
+          const rail = (k) => (g.panes < 2 ? null : k === 0 ? "start" : k === its.length - 1 ? "end" : "mid");
+          return its.map((it, k) => ({ ...this.piece(t, "side", it.h, it.el, rail(k)), pane: it.pane }));
+        }),
+        this.piece(t, "end", CARD_END),
+        after,
+      ];
+    };
     const remote = [...new Set([...rows.map(r => r.w.machine).filter(Boolean), ...this.machines.map(m => m.name), ...Object.keys(this.reconnecting)])].sort();
     const loading = m => {
       const layout = machines().find(k => k.name === m)?.layout;
@@ -378,10 +441,14 @@ export class Spaces {
       h: H_NOTE,
       el: div().id(`machine-loading-${m ?? "local"}`).h(H_NOTE).flex_none().flex().items_center().px(8).text_size(12).text_color(t.dim).child(collapsed ? "…" : "Loading…"),
     });
-    if (!remote.length) return loading(null) && !rows.length ? [loadingRow(null)] : rows.map(draw);
+    if (!remote.length) {
+      rows.forEach(listed);
+      return loading(null) && !rows.length ? [loadingRow(null)] : rows.flatMap(draw);
+    }
     const machineNames = [null, ...remote];
     return machineNames.flatMap((m) => {
       const mine = rows.filter((r) => (r.w.machine ?? null) === m);
+      mine.forEach(listed);
       const repair = this.reconnecting[m];
       const machine = this.machines.find(k => k.name === m) ?? repair?.machine;
       const connected = !m || machine?.state === "connected";
@@ -420,7 +487,7 @@ export class Spaces {
       };
       const header = { el: head, h: H_MACHINE };
       if (!collapsed && rebuilt) return [header];
-      return [header, ...(folded ? [] : mine.length ? mine.map(draw) : [loading(m) ? loadingRow(m) : empty])];
+      return [header, ...(folded ? [] : mine.length ? mine.flatMap(draw) : [loading(m) ? loadingRow(m) : empty])];
     });
   }
 
@@ -448,23 +515,112 @@ export class Spaces {
       .when(g.behind > 0, (el) => el.child(div().flex_none().text_color(t.ansi1).child(`\u2193${g.behind}`)));
   }
 
-  row({ w, i, g, tree }, t, count) {
-    const on = w.active;
-    const fromIndex = this.pressed === null ? -1 : spaces().findIndex(s => s.id === this.pressed);
+  // The space's colored letter.
+  avatar(w, t, size = 18) {
     const colors = shared("space.colors") ?? {};
     const color = colors[w.id] ?? "ansi6";
     const fill = color.startsWith("#") ? color : (MARK[color] ?? t[color]);
-    const marks = this.agentMarks(t, count, w.id);
+    return h_flex().size(size).flex_none().rounded(5).bg(fill).items_center().justify_center()
+      .text_size(10.5 * size / 18).font_bold().text_color("#ffffff").child([...w.name][0]?.toUpperCase() ?? "?");
+  }
+
+  // A piece of a space's card. The list places rows one under another, so a card
+  // is drawn in pieces that meet edge to edge: its header ("head": the top edge;
+  // "only": the whole card, when no tabs show), its rows ("side"), its end.
+  // `h`: the content's height; the piece adds its borders. `rail`: where the row
+  // is in a split tab's run ("start", "mid", "end"), for the line that joins them.
+  // -> { el, h }
+  piece(t, kind, h, child = null, rail = null) {
+    const top = kind === "head" || kind === "only";
+    const low = kind === "end" || kind === "only";
+    const total = h + (top ? 1 : 0) + (low ? 1 : 0);
+    const el = div()
+      .h(total)
+      .flex_none()
+      .bg(t.surface)
+      .border_color(t.border)
+      .border_l(1)
+      .border_r(1)
+      .when(top, (el) => el.border_t(1).rounded_t(CARD_R))
+      .when(low, (el) => el.border_b(1).rounded_b(CARD_R))
+      .when(kind === "side", (el) => el.px(CARD_PAD))
+      .when(Boolean(child), (el) => el.child(child))
+      // Drawn after the row, so its ends lie over the row's own padding.
+      .when(Boolean(rail), (el) => el.relative().child(div()
+        .absolute()
+        .left(CARD_PAD)
+        .top(0)
+        .bottom(0)
+        .border_color(railColor(t))
+        // Every piece as wide as the ends: a box only as wide as its border draws
+        // that border thinner (at zoom 1.3), so the middle would show a thin step.
+        .w(RAIL_TICK)
+        .border_l(RAIL_W)
+        .when(rail === "start", (el) => el.border_t(RAIL_W).rounded_tl(ROW_R))
+        .when(rail === "end", (el) => el.border_b(RAIL_W).rounded_bl(ROW_R))));
+    return { el, h: total };
+  }
+
+  // A small icon button at a space row's end, in a fixed slot (empty when `on` is
+  // false, so the next row's buttons still line up). Its press is its own: no
+  // switch, no drag.
+  rowButton(id, t, on, tip, glyph, size, action) {
+    const slot = h_flex().id(id).size(20).flex_none().items_center().justify_center().rounded(5);
+    if (!on) return slot;
+    return slot
+      .text_color(t.dim)
+      .cursor_pointer()
+      .hover((s) => s.bg(t.raised).text_color(t.foreground))
+      .tooltip(tip)
+      .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
+      .on_click((_e, cx) => {
+        cx.stop_propagation();
+        action(cx);
+      })
+      .child(svg(glyph).size(size).flex_none());
+  }
+
+  // Its pi sessions: the panel turns into them.
+  sessionsButton(w, t, on) {
+    return this.rowButton(`sessions-${w.id}`, t, on, "pi sessions", "mods/wierd-agents/history.svg", 13, (cx) => {
+      this.scroll.sessions = {};
+      this.agents.showSessions(w, cx);
+    });
+  }
+
+  // v / >: shows or hides its agents (a space with none has nothing to fold).
+  foldButton(w, t, on, closed) {
+    return this.rowButton(`fold-${w.id}`, t, on, closed ? "Show tabs" : "Hide tabs", `mods/workspace-chrome/chevron-${closed ? "right" : "down"}.svg`, 12, (cx) => {
+      closed ? this.closed.delete(w.id) : this.closed.add(w.id);
+      this.saveClosed();
+      cx.notify();
+    });
+  }
+
+  // A space's card header. `tabs`: how many it has; `closed`: they're hidden;
+  // `sessions`: it has a folder here (pi's sessions are this computer's);
+  // `only`: no agents show under it, so it's the whole card.
+  row({ w, i, g, tree }, t, count, { tabs = 0, closed = false, sessions = false, only = true } = {}) {
+    const on = w.active;
+    const fromIndex = this.pressed === null ? -1 : spaces().findIndex(s => s.id === this.pressed);
+    // Its agents' marks only while they're hidden: shown, they say it themselves.
+    const marks = closed ? this.agentMarks(t, count, w.id) : null;
+    const h = rowHeight({ tree });
+    // The shown space's header in the accent, so it isn't the focused agent's gray.
+    const tint = on ? activeTint(t) : t.hover;
+    const lit = on ? alpha(t.accent, "34") : t.selected;
     return v_flex()
       .relative()
       .id(`space-${w.id}`)
-      .px(8)
-      .h(rowHeight({ tree }))
+      .px(10)
+      .h(h)
       .flex_none()
       .justify_center()
-      .rounded(8)
-      .when(on, (el) => el.bg(t.selected))
-      .when(!on, (el) => el.hover((s) => s.bg(t.hover)))
+      .rounded_t(CARD_R - 1)
+      .when(only, (el) => el.rounded_b(CARD_R - 1))
+      .when(!only, (el) => el.border_b(1).border_color(t.border))
+      .bg(tint)
+      .hover((s) => s.bg(lit))
       .when(this.pressed === w.id && this.over !== w.id, (el) => el.opacity(0.5))
       .when(this.pressed !== null && this.over === w.id && this.pressed !== w.id, (el) => el.child(
         div().absolute().left(0).right(0).h(2).bg(t.accent)
@@ -500,11 +656,14 @@ export class Spaces {
           .gap(9)
           .items_center()
           .when(Boolean(tree), el => el.pl(22).child(svg("mods/workspace-chrome/branch.svg").size(13).flex_none().text_color(t.dim)))
-          .when(!tree, el => el.child(h_flex().size(18).flex_none().rounded(5).bg(fill).items_center().justify_center().text_size(10.5).font_bold().text_color("#ffffff").child([...w.name][0]?.toUpperCase() ?? "?")))
+          .when(!tree, el => el.child(this.avatar(w, t)))
           // The name keeps its room until the git tail has given all of its own.
-          .child(div().min_w(0).max_w(150).truncate().text_color(t.foreground).child(w.name))
+          .child(div().min_w(0).max_w(150).truncate().font_semibold().text_color(t.foreground).child(w.name))
           .child(g ? this.gitTail(g, tree, w.name, t) : div().flex_1())
-          .when(Boolean(marks), (el) => el.child(marks)),
+          .when(Boolean(marks), (el) => el.child(marks))
+          .child(h_flex().flex_none().mr(-4).gap(1).items_center()
+            .child(this.sessionsButton(w, t, sessions))
+            .child(this.foldButton(w, t, tabs > 0, closed))),
       );
   }
 
@@ -541,29 +700,50 @@ export class Spaces {
     }
     if (changed) setShared("space.colors", kept);
 
-    const items = this.grouped(t, collapsed, countBySpace());
-    items.push({ el: div().id("spaces-end").h(H_END).flex_none(), h: H_END });
+    const T0 = performance.now(); // DEBUG
+    const R = this.agents.prepare(t);
+    const T1 = performance.now(); // DEBUG
 
-    // Another space shown: bring its row into view, animated (once the list's
-    // height is known, and once the row is there).
+    // A space's sessions instead of the list (not on the rail; gone with its space).
+    const sessionsOf = this.agents.sessionsFor ? sp.find((s) => s.id === this.agents.sessionsFor) : null;
+    if (this.agents.sessionsFor && !sessionsOf) this.agents.hideSessions();
+    if (sessionsOf && !collapsed) return this.sessionsView(t, R, sessionsOf);
+
+    // Agent rows sit inside a card: the cache tick's lane is that much narrower.
+    this.rowInset = collapsed ? 0 : CARD_INSET;
+    const counts = countBySpace(); const T2 = performance.now(); // DEBUG
+    const items = this.grouped(t, collapsed, counts, R);
+    const T3 = performance.now(); // DEBUG
+    globalThis.__perf = { prepare: +(T1 - T0).toFixed(2), counts: +(T2 - T1).toFixed(2), grouped: +(T3 - T2).toFixed(2), items: items.length }; // DEBUG
+    items.push({ el: div().id("spaces-end").h(H_END).flex_none(), h: H_END });
+    // agent.next / agent.prev go down the list as it reads; agents not listed yet last.
+    const inOrder = new Set(this.order.map((a) => a.address));
+    setAgentOrder([...this.order, ...R.list.filter((a) => !inOrder.has(a.address))].map((a) => a.address));
+    this.agents.due = R.due;
+
+    // Another space shown or another agent focused: bring the agent's row into
+    // view, else the space's, animated (once the list's height is known, and once
+    // the row is there).
     const active = sp.find((s) => s.active)?.id ?? null;
+    const current = focused()?.pane ?? null;
+    const followKey = `${active ?? ""}|${current ?? ""}`;
     let followAt = null;
-    if (this.viewH && active !== this.followKey) {
-      const at = items.findIndex((it) => it.id === active);
+    if (this.viewH && followKey !== this.followKey) {
+      let at = current ? items.findIndex((it) => it.pane === current) : -1;
+      if (at < 0) at = items.findIndex((it) => it.id === active);
       if (at >= 0) {
-        this.followKey = active;
+        this.followKey = followKey;
         followAt = at;
       }
     }
 
-    return v_flex().size_full().min_h(0).bg(t.chrome).text_size(13)
-      .child(h_flex().h(31).flex_none().pl(16).pr(10).items_center().justify_between().text_size(11.5).text_color(t.dim)
-        .when(!collapsed, el => el.child("Spaces"))
-        .child(div().id("space-new").size(26).flex_none().flex().items_center().justify_center().rounded(6).hover(s => s.bg(t.hover).text_color(t.foreground))
-          .on_click(() => run("space.new")).child(svg("mods/workspace-chrome/plus.svg").size(14))))
-      .child(scrollList(this, t, items, this.scroll, {
+    // No title row: new spaces come from a machine's + (or space.new).
+    return v_flex().size_full().min_h(0).pt(4).bg(t.chrome).text_size(13)
+      .child(scrollList(this, t, items, this.scroll.list, {
         collapsed,
         followAt,
+        // A card's pieces meet edge to edge; cards keep their own room between.
+        gap: 0,
         // A release anywhere over the list ends a row drag (the rows' own come first).
         onMouseUp: (cx) => {
           if (this.pressed === null) return;
@@ -571,6 +751,39 @@ export class Spaces {
           this.over = null;
           cx.notify();
         },
+      }))
+      .when(collapsed, (el) => el.child(h_flex().h(28).flex_none().items_center().justify_center()
+        .child(div().id("collapse").text_size(13).text_color(t.dim).hover((s) => s.text_color(t.foreground)).on_click(toggleSidebar).child("»"))));
+  }
+
+  // A space's pi sessions: Back on top, then the list, the next page coming in
+  // at its end (or at once while the list doesn't fill the panel).
+  sessionsView(t, R, space) {
+    this.rowInset = 0;
+    const items = this.agents.sessionItems(R, space);
+    const total = items.reduce((sum, it) => sum + it.h + GAP, 0);
+    this.agents.sessShort = this.viewH > 0 && total < this.viewH;
+    this.agents.due = R.due;
+    const count = this.agents.sessionCount(space);
+    const back = (cx) => {
+      this.agents.hideSessions();
+      cx.notify();
+    };
+    return v_flex().size_full().min_h(0).bg(t.chrome).text_size(13)
+      .child(h_flex().h(31).flex_none().pl(10).pr(16).gap(8).items_center().text_size(11.5).text_color(t.dim)
+        .child(h_flex().id("sessions-back").h(24).pl(4).pr(8).gap(4).flex_none().items_center().rounded(6).cursor_pointer()
+          .hover((s) => s.bg(t.hover).text_color(t.foreground))
+          .tooltip("Back to spaces")
+          .on_click((_e, cx) => back(cx))
+          .child(svg("mods/workspace-chrome/chevron-left.svg").size(13).flex_none())
+          .child("Back"))
+        .child(div().flex_1())
+        .child(this.avatar(space, t, 16))
+        .child(div().min_w(0).truncate().text_color(t.muted).child(space.name))
+        .when(count != null, (el) => el.child(div().flex_none().text_color(t.dim).child(String(count)))))
+      .child(scrollList(this, t, items, this.scroll.sessions, {
+        collapsed: false,
+        onEnd: (cx) => this.agents.moreAtEnd(cx),
       }));
   }
 }

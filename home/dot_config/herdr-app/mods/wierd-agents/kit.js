@@ -1,6 +1,6 @@
-// What this mod's panels share: the Agents / Sessions panel (main.js) and the
-// Spaces panel (spaces.js, props {panel: "spaces"}). A mod can't import another
-// mod's files, so both panels live in this one folder.
+// What the sidebar panel's parts share: the spaces list (spaces.js) and the agent
+// rows and sessions under it (agents.js). A mod can't import another mod's files,
+// so they all live in this one folder.
 
 import { div, svg } from "gpui-kit";
 import { layout, run, shared, setShared, theme, window } from "herdr";

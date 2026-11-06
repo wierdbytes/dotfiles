@@ -11,6 +11,8 @@
 //   followAt  a row to bring into view, animated.
 //   onEnd     runs when the wheel or the thumb reaches the bottom.
 //   onMouseUp runs on any left release over the list (after the rows' own).
+//   gap       the room between rows (GAP unless set; 0 for rows drawn as pieces
+//             of one card).
 
 import { div } from "gpui-kit";
 import { v_flex } from "gpui-base";
@@ -18,19 +20,23 @@ import { settings } from "herdr";
 
 // The gap between rows.
 export const GAP = 1;
+// The scrollbar: a thin thumb in the list's right padding, clear of the rows
+// (THUMB_RIGHT from the edge, so 8 - THUMB_RIGHT - THUMB_W px from them), in a
+// wider strip that takes the pointer.
+const THUMB_W = 3, THUMB_RIGHT = 2, THUMB_HIT = 7;
 // How long scrolling to a row takes, and the room kept around it.
 const SCROLL_MS = 280;
 const FOLLOW_MARGIN = 8;
 
-export function scrollList(owner, t, items, st, { collapsed, followAt = null, onEnd = null, onMouseUp = null }) {
+export function scrollList(owner, t, items, st, { collapsed, followAt = null, onEnd = null, onMouseUp = null, gap = GAP }) {
   const now = Date.now();
   let y = 0;
   const tops = items.map((it) => {
     const top = y;
-    y += it.h + GAP;
+    y += it.h + gap;
     return top;
   });
-  const total = Math.max(0, y - GAP);
+  const total = Math.max(0, y - gap);
   const viewH = owner.viewH ?? 0;
   const maxOff = Math.max(0, total - viewH);
   const clamp = (v) => Math.max(0, Math.min(v, maxOff));
@@ -92,23 +98,32 @@ export function scrollList(owner, t, items, st, { collapsed, followAt = null, on
       .top(-st.offset)
       .transition("top", motion)
       .px(collapsed ? 0 : 8)
-      .gap(GAP)
+      .gap(gap)
       .children(items.map((it) => it.el)))
     .when(maxOff > 0, (el) => el.child(div()
       .id("ag-thumb")
       .absolute()
-      .right(1)
+      .right(0)
       .top(thumbTop)
       .transition("top", motion)
-      .w(6)
+      .w(THUMB_HIT)
       .h(thumbH)
-      .rounded(3)
-      .bg(owner.drag ? t.muted + "99" : t.dim + "66")
-      .hover((s) => s.bg(t.muted + "99"))
+      .flex()
+      .justify_end()
+      .pr(THUMB_RIGHT)
+      .on_hover((on, cx) => {
+        owner.thumbHover = on;
+        cx.notify();
+      })
       .on_mouse_down("left", (e, cx) => {
         cx.stop_propagation();
         owner.drag = { y: e.position.y, off: st.offset };
         st.animateUntil = 0;
         cx.notify();
-      })));
+      })
+      .child(div()
+        .w(THUMB_W)
+        .h_full()
+        .rounded(THUMB_W / 2)
+        .bg(owner.drag || owner.thumbHover ? t.muted + "99" : t.dim + "66"))));
 }
