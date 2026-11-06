@@ -40,7 +40,7 @@
               "id": "agents",
               "type": "block",
               "content": {
-                "mod": "agents"
+                "mod": "wierd-agents"
               },
               "size": {
                 "weight": 1
@@ -48,6 +48,19 @@
               "min": 90
             }
           ]
+        },
+        {
+          "id": "usage",
+          "type": "block",
+          "content": {
+            "mod": "limits",
+            "props": {
+              "sidebar": "usage"
+            }
+          },
+          "size": {
+            "px": 93
+          }
         },
         {
           "id": "sidebar-footer",
