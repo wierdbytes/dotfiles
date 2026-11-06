@@ -239,7 +239,10 @@ export FZF_DEFAULT_OPTS='
 # -------------
 
 # ---- fzf-git ----
-source ~/.local/share/fzf-git/fzf-git.sh
+# In a function of its own: sourced bare, it sees the shell's own arguments
+# (`zsh -lic '"$@"' zsh pi ...`, how Herdr starts agents) and runs them as
+# its command, which exits the shell.
+() { source ~/.local/share/fzf-git/fzf-git.sh }
 
 ## List of bindings
 ## CTRL-G F for Files
