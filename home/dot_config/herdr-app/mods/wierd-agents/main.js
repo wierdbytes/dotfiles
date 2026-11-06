@@ -3,7 +3,8 @@
 // Each agent reads in two lines: its status and its task; then what
 // it runs with (the provider's mark, model and @effort from @wierdbytes/pi-herdr's
 // labels, else its program), its sub-agents and terminals, its context size and how
-// long it has been like this.
+// long it has been like this. Under that line, a thin bar fills with the share of
+// the model's window in use, green, then yellow past 60% and red past 80%.
 // The Sessions tab lists pi's sessions per space; one is opened in a peek panel
 // (Keep: a tab of its space; closing: that pi ends), or gone to if a pi has it open.
 
@@ -12,8 +13,13 @@ import { v_flex, h_flex } from "gpui-base";
 import { agents, terminals, focused, spaces, panes, run, theme, shared, setShared, setAgentOrder, openOverlay, closeOverlay, props, window, layout, settings, exec, hc, home, appHome, notify } from "herdr";
 import { agentMeta, shortModel, providerOf, tokens, duration, nextTick, effortColor, ctxColor, maxGradient } from "./meta.js";
 
-// The context gauge's width; a pi with no context yet keeps this much room.
-const GAUGE_W = 44;
+// The context size's slot ("69.2k" in the mono face); a pi with no context yet
+// keeps this much room, so the badges don't jump when the number shows up.
+const CTX_W = 34;
+// The context bar under a row's second line, in the row's bottom padding: its
+// thickness, how far it sits above the row's edge, and the fill's opacity (hex
+// alpha over the track): the statusline's colors, toned down for a quiet list.
+const BAR_H = 2, BAR_BOTTOM = 3, FILL_ALPHA = "99";
 // Row heights in the list (px at zoom 1) and the gap between rows: the list
 // scrolls itself, so it places rows by these.
 const H_HEADER = 30, H_ROW = 52, H_SUB = 26, H_RAIL = 26, GAP = 1;
@@ -423,37 +429,45 @@ export default class Agents extends View {
       .child(div().min_w(14).text_center().child(String(n)));
   }
 
-  // The context size in a frame filled 0..100% of the model's window, like
-  // pi-statusline's bar. Fixed width, so the fills compare down the list.
-  gauge(t, dark, addr, ctx, full, max, mono) {
-    const color = ctxColor(full, t, dark);
+  // The context size as plain text in a fixed slot; the bar under the row says
+  // how full the window is.
+  ctxText(t, addr, ctx, full, max, mono) {
     return div()
       .id(`ctx-${addr}`)
-      .relative()
       .flex_none()
-      .w(GAUGE_W)
-      .h(16)
-      .rounded(4)
-      .border(1)
-      .border_color(full != null ? `${color}99` : t.input)
-      .overflow_hidden()
+      .w(CTX_W)
+      .text_right()
+      .font_family(mono)
+      .text_size(10.5)
+      .text_color(t.muted)
       .tooltip(full != null ? `${ctx} of ${tokens(max)} context · ${Math.floor(full * 100)}%` : `${ctx} context`)
-      .when(full != null, (el) => el.child(div()
+      .child(ctx);
+  }
+
+  // A thin bar across the row's bottom padding, like the limits mod's: grey track,
+  // the used share filled in one color (green, yellow or red as a whole, like
+  // pi-statusline's bar), softened. Placed over the row, so the lines above never
+  // move. No `full` (the model's window is unknown): the track alone.
+  ctxBar(t, dark, full) {
+    const color = ctxColor(full, t, dark);
+    const soft = /^#[0-9a-f]{6}$/i.test(color) ? `${color}${FILL_ALPHA}` : color;
+    return div()
+      .absolute()
+      .left(8)
+      .right(8)
+      .bottom(BAR_BOTTOM)
+      .h(BAR_H)
+      .rounded(1)
+      .bg(t.raised)
+      .when(full > 0, (el) => el.child(div()
         .absolute()
         .left(0)
         .top(0)
         .bottom(0)
+        .min_w(2)
         .w(`${(full * 100).toFixed(1)}%`)
-        .bg(`${color}55`)))
-      .child(h_flex()
-        .absolute()
-        .inset(0)
-        .items_center()
-        .justify_center()
-        .font_family(mono)
-        .text_size(10.5)
-        .text_color(t.muted)
-        .child(ctx));
+        .rounded(1)
+        .bg(soft)));
   }
 
   render(cx) {
@@ -586,12 +600,13 @@ export default class Agents extends View {
       const mark = providerOf(meta);
       const pic = providerIcon(mark, 13, t.muted) ?? icon(a.program, 14, t.muted);
       const model = meta?.model ? shortModel(meta.model, mark) : a.program?.name ?? "";
-      // No context yet (a fresh pi before its first prompt): no gauge at all.
+      // No context yet (a fresh pi before its first prompt): no number, an empty bar.
       const ctx = meta?.ctx > 0 ? tokens(meta.ctx) : null;
       const full = ctx && meta?.ctxMax ? Math.min(1, meta.ctx / meta.ctxMax) : null;
 
       return v_flex()
         .id(`ag-${a.address}`)
+        .relative()
         .h(H_ROW)
         .px(8)
         .py(6)
@@ -613,7 +628,8 @@ export default class Agents extends View {
           .items_center()
           // The status sits where the space tile was, in the provider icon's column.
           .child(h_flex().w(18).flex_none().items_center().justify_center().child(this.status(t, a, true)))
-          .child(div().flex_1().min_w(0).truncate().text_size(13).when(!quiet, (el) => el.font_medium()).text_color(quiet ? t.muted : t.foreground).child(label(a))))
+          // Every title reads the same; the status and the line below say which are quiet.
+          .child(div().flex_1().min_w(0).truncate().text_size(13).font_medium().text_color(t.foreground).child(label(a))))
         .child(h_flex()
           .h(18)
           .gap(9)
@@ -634,10 +650,10 @@ export default class Agents extends View {
             .when(Boolean(machine), (el) => el.child(div().text_size(10).text_color(t.dim).child(machine)))
             .when(kidAgents + inner > 0, (el) => el.child(this.badge(t, `subs-${a.address}`, "git-branch", kidAgents + inner, subTip, kidAgents > 0 ? toggle : null, open)))
             .when(kidTerms > 0, (el) => el.child(this.badge(t, `terms-${a.address}`, "terminal", kidTerms, plural(kidTerms, "terminal"), toggle, open)))
-            // A pi keeps the gauge's place before its first prompt, so the
-            // badges don't jump when the gauge shows up.
-            .when(Boolean(ctx), (el) => el.child(this.gauge(t, dark, a.address, ctx, full, meta.ctxMax, mono)))
-            .when(!ctx && Boolean(meta), (el) => el.child(div().w(GAUGE_W).flex_none()))
+            // A pi keeps the number's place before its first prompt, so the
+            // badges don't jump when it shows up.
+            .when(Boolean(ctx), (el) => el.child(this.ctxText(t, a.address, ctx, full, meta.ctxMax, mono)))
+            .when(!ctx && Boolean(meta), (el) => el.child(div().w(CTX_W).flex_none()))
             // The clock and the pin share one fixed slot: hovering swaps them in place.
             .child(h_flex()
               .w(26)
@@ -649,7 +665,9 @@ export default class Agents extends View {
                 .font_family(mono)
                 .text_size(10.5)
                 .text_color(t.dim)
-                .child(clock(when)))))));
+                .child(clock(when)))))))
+        // Every pi has the bar, filled once it knows its context and window.
+        .when(Boolean(meta), (el) => el.child(this.ctxBar(t, dark, full)));
     };
 
     // Groups in list order: spaces (grouped) or priority sections. Agents of a
@@ -982,6 +1000,7 @@ export default class Agents extends View {
           id,
           el: v_flex()
             .id(`${gid}-${id}`)
+            .relative()
             .h(H_ROW)
             .px(8)
             .py(6)
@@ -1006,9 +1025,10 @@ export default class Agents extends View {
               .child(h_flex().w(18).flex_none().items_center().justify_center()
                 .when(Boolean(agent), (el) => el.child(this.status(t, agent, true)))
                 .when(starting, (el) => el.child(svg("mods/workspace-chrome/spinner.svg").size(12).flex_none().text_color(t.dim).spin(900))))
+              // Every title reads the same; the status says which pi has it open.
               .child(div().flex_1().min_w(0).truncate().text_size(13)
-                .when(live, (el) => el.font_medium())
-                .text_color(live ? t.foreground : t.muted)
+                .font_medium()
+                .text_color(t.foreground)
                 .child(title)))
             .child(h_flex()
               .h(18)
@@ -1021,9 +1041,11 @@ export default class Agents extends View {
                 .child(div().min_w(0).truncate().text_color(live ? t.muted : t.dim).child(model))
                 .when(Boolean(level), (el) => el.child(effort(level))))
               .child(h_flex().flex_none().gap(7).items_center()
-                .when(Boolean(ctx), (el) => el.child(this.gauge(t, dark, `${gid}-${id}`, ctx, full, ctxMax, mono)))
+                .when(Boolean(ctx), (el) => el.child(this.ctxText(t, `${gid}-${id}`, ctx, full, ctxMax, mono)))
                 .child(h_flex().w(26).flex_none().justify_end().items_center()
-                  .child(div().font_family(mono).text_size(10.5).text_color(t.dim).child(clock(mtime)))))),
+                  .child(div().font_family(mono).text_size(10.5).text_color(t.dim).child(clock(mtime))))))
+            // Every session is a pi's: the bar shows on each, filled when its window is known.
+            .child(this.ctxBar(t, dark, full)),
         });
       }
       if (files.length < dir.total) {
