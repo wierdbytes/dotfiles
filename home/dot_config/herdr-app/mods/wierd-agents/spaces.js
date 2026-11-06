@@ -19,7 +19,7 @@ import { v_flex, h_flex } from "gpui-base";
 import { spaces, machines, panes, agents, terminals, focused, run, openOverlay, exec, hc, theme, shared, setShared, setAgentOrder, watchFolder, window } from "herdr";
 import { narrow, place, statusMark, isAgent, kidStatus, toggleSidebar } from "./kit.js";
 import { scrollList, GAP } from "./scroll.js";
-import { Agents, BAR_INSET, BAR_BOTTOM } from "./agents.js";
+import { Agents } from "./agents.js";
 
 // Row heights (px at zoom 1): the list places rows by these. A machine's header,
 // a space, a worktree under its repo, a note (Loading…, New space there), a space
@@ -30,9 +30,6 @@ const H_MACHINE = 26, H_SPACE = 34, H_TREE = 32, H_NOTE = 28, H_RAIL = 26, H_END
 // card's sides: border and padding).
 const CARD_R = 10, CARD_PAD = 4, CARD_GAP = 6;
 const CARD_INSET = 2 * (1 + CARD_PAD);
-// The room under the last row: its context bar ends as far above the card's
-// bottom edge as it starts from the card's left edge.
-const CARD_END = CARD_PAD + BAR_INSET - BAR_BOTTOM;
 // How far a split tab's joining line stays from its first and last rows' edges.
 // The joining line is a bracket, [, traced along the rows' own highlight: from
 // the first row's top to the last row's bottom, down their left edge, its
@@ -429,16 +426,28 @@ export class Spaces {
       const head = this.row(r, t, counts[r.w.id], { tabs: groups.length, closed, sessions, only: !open });
       const after = { el: div().h(CARD_GAP).flex_none(), h: CARD_GAP };
       if (!open) return [{ ...this.piece(t, "only", rowHeight(r), head), id: r.w.id }, after];
+      // Every row's highlight stays CARD_PAD from the header, from the next row and
+      // from the card's bottom, whatever the row (an agent with its context bar,
+      // a terminal): a selected last row sits as tight as any other.
+      const inner = groups.flatMap((g, i) => {
+        // A tab split in several panes: a line down the left joins its rows
+        // (and the room between them).
+        const its = this.agents.groupItems(R, g);
+        const joined = g.panes >= 2;
+        const rail = (k) => (!joined ? null : k === 0 ? "start" : k === its.length - 1 ? "end" : "mid");
+        return [
+          ...(i > 0 ? [this.piece(t, "side", CARD_PAD)] : []),
+          ...its.flatMap((it, k) => [
+            ...(k > 0 ? [this.piece(t, "side", CARD_PAD, null, joined ? "mid" : null)] : []),
+            { ...this.piece(t, "side", it.h, it.el, rail(k)), pane: it.pane },
+          ]),
+        ];
+      });
       return [
         { ...this.piece(t, "head", rowHeight(r), head), id: r.w.id },
         this.piece(t, "side", CARD_PAD),
-        ...groups.flatMap((g) => {
-          // A tab split in several panes: a line down the left joins its rows.
-          const its = this.agents.groupItems(R, g);
-          const rail = (k) => (g.panes < 2 ? null : k === 0 ? "start" : k === its.length - 1 ? "end" : "mid");
-          return its.map((it, k) => ({ ...this.piece(t, "side", it.h, it.el, rail(k)), pane: it.pane }));
-        }),
-        this.piece(t, "end", CARD_END),
+        ...inner,
+        this.piece(t, "end", CARD_PAD),
         after,
       ];
     };
@@ -623,7 +632,10 @@ export class Spaces {
     return v_flex()
       .relative()
       .id(`space-${w.id}`)
-      .px(10)
+      // Left: the rows' icon column (card pad + row pad), so avatar and name line up
+      // with the marks and names under them. Right: the buttons' slots already do.
+      .pl(CARD_PAD + 8)
+      .pr(10)
       .h(h)
       .flex_none()
       .justify_center()

@@ -33,7 +33,7 @@ const CTX_W = 34;
 // alpha over the track): the statusline's colors, toned down for a quiet list.
 const BAR_H = 2, FILL_ALPHA = "99";
 // The bar's inset from its row's sides, and how far it sits above the row's
-// bottom (the panel lines a card's padding up with them).
+// bottom.
 export const BAR_INSET = 8, BAR_BOTTOM = 3;
 // The cache tick: its width, how far it rises above the bar, and how often the
 // list aims it anew (it slides between those aims natively, so the list redraws
