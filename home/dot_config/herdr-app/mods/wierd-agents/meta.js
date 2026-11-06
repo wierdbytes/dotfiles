@@ -133,6 +133,14 @@ export function effortColor(effort, t, dark) {
   return dark ? e.hex : (t[e.ansi] ?? e.hex);
 }
 
+// pi-statusline's context bar colors: green up to 60%, yellow past it, red past 80%.
+// Dark themes take the statusline's own colors, light ones the theme's ANSI ones.
+export function ctxColor(full, t, dark) {
+  const pct = Math.floor((full ?? 0) * 100);
+  const [hex, ansi] = pct > 80 ? ["#f7768e", "ansi1"] : pct > 60 ? ["#e0af68", "ansi3"] : ["#9ece6a", "ansi2"];
+  return dark ? hex : (t[ansi] ?? hex);
+}
+
 // Each glyph of `text` with its color along the max gradient; spaces take no stop.
 export function maxGradient(text) {
   const glyphs = Array.from(text);

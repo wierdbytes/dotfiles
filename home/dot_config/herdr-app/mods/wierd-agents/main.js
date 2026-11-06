@@ -8,7 +8,10 @@
 import { View, div, image, svg } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
 import { agents, terminals, focused, spaces, run, theme, shared, setShared, setAgentOrder, openOverlay, closeOverlay, props, window, layout, settings } from "herdr";
-import { agentMeta, shortModel, providerOf, tokens, duration, nextTick, effortColor, maxGradient } from "./meta.js";
+import { agentMeta, shortModel, providerOf, tokens, duration, nextTick, effortColor, ctxColor, maxGradient } from "./meta.js";
+
+// The context gauge's width; a pi with no context yet keeps this much room.
+const GAUGE_W = 44;
 
 function find(node, id) {
   if (node?.id === id) return node;
@@ -253,7 +256,41 @@ export default class Agents extends View {
           toggle(cx);
         }))
       .child(svg(`mods/workspace-chrome/${glyph}.svg`).size(11).flex_none())
-      .child(String(n));
+      // Room for two digits, so 9 -> 10 doesn't push its neighbours.
+      .child(div().min_w(14).text_center().child(String(n)));
+  }
+
+  // The context size in a frame filled 0..100% of the model's window, like
+  // pi-statusline's bar. Fixed width, so the fills compare down the list.
+  gauge(t, dark, addr, ctx, full, max, mono) {
+    const color = ctxColor(full, t, dark);
+    return div()
+      .id(`ctx-${addr}`)
+      .relative()
+      .flex_none()
+      .w(GAUGE_W)
+      .h(16)
+      .rounded(4)
+      .border(1)
+      .border_color(full != null ? `${color}99` : t.input)
+      .overflow_hidden()
+      .tooltip(full != null ? `${ctx} of ${tokens(max)} context · ${Math.floor(full * 100)}%` : `${ctx} context`)
+      .when(full != null, (el) => el.child(div()
+        .absolute()
+        .left(0)
+        .top(0)
+        .bottom(0)
+        .w(`${(full * 100).toFixed(1)}%`)
+        .bg(`${color}55`)))
+      .child(h_flex()
+        .absolute()
+        .inset(0)
+        .items_center()
+        .justify_center()
+        .font_family(mono)
+        .text_size(10.5)
+        .text_color(t.muted)
+        .child(ctx));
   }
 
   render(cx) {
@@ -399,8 +436,9 @@ export default class Agents extends View {
       const mark = providerOf(meta);
       const pic = providerIcon(mark, 13, t.muted) ?? icon(a.program, 14, t.muted);
       const model = meta?.model ? shortModel(meta.model, mark) : a.program?.name ?? "";
-      const ctx = tokens(meta?.ctx);
-      const full = meta?.ctx != null && meta?.ctxMax ? meta.ctx / meta.ctxMax : null;
+      // No context yet (a fresh pi before its first prompt): no gauge at all.
+      const ctx = meta?.ctx > 0 ? tokens(meta.ctx) : null;
+      const full = ctx && meta?.ctxMax ? Math.min(1, meta.ctx / meta.ctxMax) : null;
 
       return v_flex()
         .id(`ag-${a.address}`)
@@ -438,26 +476,29 @@ export default class Agents extends View {
             .justify_center()
             .when(Boolean(meta?.provider), (el) => el.tooltip(meta.provider))
             .when(Boolean(pic), (el) => el.child(pic)))
-          .child(h_flex().flex_1().min_w(0).gap(4).items_center()
+          .child(h_flex().flex_1().min_w(0).gap(4).items_center().font_family(mono).text_size(10.5)
             .child(div().min_w(0).truncate().text_color(quiet ? t.dim : t.muted).child(model))
             .when(Boolean(meta?.effort), (el) => el.child(effort(meta.effort))))
           .child(h_flex().flex_none().gap(7).items_center()
             .when(Boolean(machine), (el) => el.child(div().text_size(10).text_color(t.dim).child(machine)))
             .when(kidAgents + inner > 0, (el) => el.child(this.badge(t, `subs-${a.address}`, "git-branch", kidAgents + inner, subTip, kidAgents > 0 ? toggle : null, open)))
             .when(kidTerms > 0, (el) => el.child(this.badge(t, `terms-${a.address}`, "terminal", kidTerms, plural(kidTerms, "terminal"), toggle, open)))
-            .when(Boolean(ctx), (el) => el.child(div()
-              .id(`ctx-${a.address}`)
-              .text_color(full != null && full >= 0.8 ? t.blocked : (t.ansi4 ?? t.accent))
-              .tooltip(full != null ? `${ctx} of ${tokens(meta.ctxMax)} context · ${Math.round(full * 100)}%` : `${ctx} context`)
-              .child(ctx)))
-            .when(this.hovered === a.address, (el) => el.child(pin))
-            .when(this.hovered !== a.address && Boolean(when), (el) => el.child(div()
-              .min_w(22)
-              .text_right()
-              .font_family(mono)
-              .text_size(11.5)
-              .text_color(t.dim)
-              .child(clock(when))))));
+            // A pi keeps the gauge's place before its first prompt, so the
+            // badges don't jump when the gauge shows up.
+            .when(Boolean(ctx), (el) => el.child(this.gauge(t, dark, a.address, ctx, full, meta.ctxMax, mono)))
+            .when(!ctx && Boolean(meta), (el) => el.child(div().w(GAUGE_W).flex_none()))
+            // The clock and the pin share one fixed slot: hovering swaps them in place.
+            .child(h_flex()
+              .w(26)
+              .flex_none()
+              .justify_end()
+              .items_center()
+              .when(this.hovered === a.address, (el) => el.child(pin))
+              .when(this.hovered !== a.address && Boolean(when), (el) => el.child(div()
+                .font_family(mono)
+                .text_size(10.5)
+                .text_color(t.dim)
+                .child(clock(when)))))));
     };
 
     // Groups in list order: spaces (grouped) or priority sections. Agents of a
