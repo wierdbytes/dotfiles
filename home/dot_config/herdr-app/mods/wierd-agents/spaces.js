@@ -12,11 +12,12 @@
 // by a line on the left. Each space is a card: its row is the header (a lighter
 // tone, the shown space's in the accent), its tabs the body. The list scrolls
 // itself (scroll.js) and brings the focused pane, else the shown space, into view.
-// Click a space to switch, right-click for its menu, drag to reorder.
+// Click a space to switch, right-click for its menu, drag its header to reorder:
+// the card lifts and follows the pointer while the others part to make room.
 
 import { div, svg } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
-import { spaces, machines, panes, agents, terminals, focused, run, openOverlay, exec, hc, theme, shared, setShared, setAgentOrder, watchFolder, window } from "herdr";
+import { spaces, machines, panes, agents, terminals, focused, run, openOverlay, exec, hc, theme, settings, shared, setShared, setAgentOrder, watchFolder, window } from "herdr";
 import { narrow, place, statusMark, isAgent, kidStatus, toggleSidebar } from "./kit.js";
 import { scrollList, GAP } from "./scroll.js";
 import { Agents } from "./agents.js";
@@ -37,6 +38,14 @@ const CARD_INSET = 2 * (1 + CARD_PAD);
 // ends reach in along the rows' top and bottom edges (past the corners).
 const ROW_R = 8;
 const RAIL_W = 2, RAIL_TICK = 10;
+// Dragging a space by its header. Pressed, it waits; held HOLD_MS or moved SLOP px,
+// it lifts: its card (with the worktrees under it) leaves the list and follows the
+// pointer up and down with a shadow, and the other cards of its machine part
+// (PART_MS) where it would land. Released, it glides there (SETTLE_MS) and the
+// space moves; released without ever moving, it's a click. Leaving the list puts
+// it back. Within EDGE px of the list's top or bottom the list scrolls, up to
+// EDGE_SPEED px a tick.
+const HOLD_MS = 220, SLOP = 4, PART_MS = 160, SETTLE_MS = 180, EDGE = 32, EDGE_SPEED = 12;
 // A color with an alpha, where it's a plain #rrggbb.
 const alpha = (c, a) => (/^#[0-9a-f]{6}$/i.test(c ?? "") ? `${c}${a}` : c);
 // The shown space's header tone (the accent, faint), and a split tab's joining
@@ -119,8 +128,10 @@ export class Spaces {
     // worktree appears under its repo instead of jumping there.
     this.shown = new Set(spaces().map((s) => s.id));
     this.born = {};
-    this.pressed = null;
-    this.over = null;
+    // The space being dragged (see HOLD_MS), and a number per drag: its slots and
+    // card are new elements each time, so nothing slides in from the last drag.
+    this.dnd = null;
+    this.dndSeq = 0;
     this.machines = [];
     // Each list's scroll position (spaces and agents; a space's sessions), and
     // the space and agent it last brought into view.
@@ -403,6 +414,22 @@ export class Spaces {
   grouped(t, collapsed, counts, R) {
     const rows = this.ordered();
     const ps = panes();
+    // What a drag moves: a space with the worktrees listed under it moves as one,
+    // among the others of its machine (its lane); a worktree among its repo's.
+    // Sets `this.units`: space id -> { lane, family: the ids that move with it }.
+    const units = new Map();
+    const mainOf = {};
+    for (const r of rows) {
+      const main = r.tree && r.g ? mainOf[r.g.repo] : null;
+      if (main) {
+        units.get(main).family.push(r.w.id);
+        units.set(r.w.id, { lane: `t-${main}`, family: [r.w.id] });
+        continue;
+      }
+      units.set(r.w.id, { lane: `m-${r.w.machine ?? ""}`, family: [r.w.id] });
+      if (r.g && !r.g.linked) mainOf[r.g.repo] ??= r.w.id;
+    }
+    this.units = units;
     const order = [];
     this.order = order;
     // Every row's pane in the list's order (agents and plain terminals alike),
@@ -417,18 +444,26 @@ export class Spaces {
         for (const p of g.others) if (p.pane) paneOrder.push(p.pane);
       }
     };
-    const draw = (r) => {
+    // Every piece of a space's card says whose it is (`unit`), and the room after
+    // the card is marked `spacer`: a drag lifts them together (dragLayout).
+    const draw = (r) => card(r).map((it) => ({ ...it, unit: r.w.id }));
+    const card = (r) => {
       if (collapsed) return [{ el: this.compact(r, t, counts[r.w.id]), h: H_RAIL, id: r.w.id }];
       const groups = R.groups.get(r.w.id) ?? [];
       const closed = this.closed.has(r.w.id);
       const sessions = Boolean(this.agents.sessionPlace(r.w, ps));
       const open = !closed && groups.length > 0;
       const head = this.row(r, t, counts[r.w.id], { tabs: groups.length, closed, sessions, only: !open });
-      const after = { el: div().h(CARD_GAP).flex_none(), h: CARD_GAP };
-      if (!open) return [{ ...this.piece(t, "only", rowHeight(r), head), id: r.w.id }, after];
+      const after = { el: div().h(CARD_GAP).flex_none(), h: CARD_GAP, spacer: true };
+      const lifted = this.isLifted(r.w.id);
+      const piece = (kind, h, child = null, rail = null) => this.piece(t, kind, h, child, rail, lifted);
+      if (!open) return [{ ...piece("only", rowHeight(r), head), id: r.w.id }, after];
       // Every row's highlight stays CARD_PAD from the header, from the next row and
       // from the card's bottom, whatever the row (an agent with its context bar,
       // a terminal): a selected last row sits as tight as any other.
+      // The card's last row closes it ("last": the room under it and the bottom
+      // edge are its own), so its bottom corners round as fully as the top's.
+      let sealed = false;
       const inner = groups.flatMap((g, i) => {
         // A tab split in several panes: a line down the left joins its rows
         // (and the room between them).
@@ -436,18 +471,22 @@ export class Spaces {
         const joined = g.panes >= 2;
         const rail = (k) => (!joined ? null : k === 0 ? "start" : k === its.length - 1 ? "end" : "mid");
         return [
-          ...(i > 0 ? [this.piece(t, "side", CARD_PAD)] : []),
-          ...its.flatMap((it, k) => [
-            ...(k > 0 ? [this.piece(t, "side", CARD_PAD, null, joined ? "mid" : null)] : []),
-            { ...this.piece(t, "side", it.h, it.el, rail(k)), pane: it.pane },
-          ]),
+          ...(i > 0 ? [piece("side", CARD_PAD)] : []),
+          ...its.flatMap((it, k) => {
+            const last = i === groups.length - 1 && k === its.length - 1;
+            sealed ||= last;
+            return [
+              ...(k > 0 ? [piece("side", CARD_PAD, null, joined ? "mid" : null)] : []),
+              { ...piece(last ? "last" : "side", it.h, it.el, rail(k)), pane: it.pane },
+            ];
+          }),
         ];
       });
       return [
-        { ...this.piece(t, "head", rowHeight(r), head), id: r.w.id },
-        this.piece(t, "side", CARD_PAD),
+        { ...piece("head", rowHeight(r), head), id: r.w.id },
+        piece("side", CARD_PAD),
         ...inner,
-        this.piece(t, "end", CARD_PAD),
+        ...(sealed ? [] : [piece("end", CARD_PAD)]),
         after,
       ];
     };
@@ -546,31 +585,36 @@ export class Spaces {
 
   // A piece of a space's card. The list places rows one under another, so a card
   // is drawn in pieces that meet edge to edge: its header ("head": the top edge;
-  // "only": the whole card, when no tabs show), its rows ("side"), its end.
+  // "only": the whole card, when no tabs show), its rows ("side"), its last row
+  // with the room under it and the bottom edge ("last"; a bare "end" only for a
+  // card without rows: a piece shorter than CARD_R can't round its corners fully).
   // `h`: the content's height; the piece adds its borders. `rail`: where the row
   // is in a split tab's run ("start", "mid", "end"), for the line that joins them.
+  // `lifted`: the card is being dragged, its edge in the accent.
   // -> { el, h }
-  piece(t, kind, h, child = null, rail = null) {
+  piece(t, kind, h, child = null, rail = null, lifted = false) {
     const top = kind === "head" || kind === "only";
-    const low = kind === "end" || kind === "only";
-    const total = h + (top ? 1 : 0) + (low ? 1 : 0);
+    const low = kind === "end" || kind === "only" || kind === "last";
+    const pad = kind === "last" ? CARD_PAD : 0;
+    const total = h + pad + (top ? 1 : 0) + (low ? 1 : 0);
     const el = div()
       .h(total)
       .flex_none()
-      .bg(t.surface)
-      .border_color(t.border)
+      .bg(lifted ? t.raised : t.surface)
+      .border_color(lifted ? alpha(t.accent, "99") : t.border)
       .border_l(1)
       .border_r(1)
       .when(top, (el) => el.border_t(1).rounded_t(CARD_R))
       .when(low, (el) => el.border_b(1).rounded_b(CARD_R))
-      .when(kind === "side", (el) => el.px(CARD_PAD))
+      .when(kind === "side" || kind === "last", (el) => el.px(CARD_PAD))
+      .when(pad > 0, (el) => el.pb(pad))
       .when(Boolean(child), (el) => el.child(child))
       // Drawn after the row, so its ends lie over the row's own padding.
       .when(Boolean(rail), (el) => el.relative().child(div()
         .absolute()
         .left(CARD_PAD)
         .top(0)
-        .bottom(0)
+        .bottom(pad)
         .border_color(railColor(t))
         // Every piece as wide as the ends: a box only as wide as its border draws
         // that border thinner (at zoom 1.3), so the middle would show a thin step.
@@ -622,7 +666,6 @@ export class Spaces {
   // `only`: no agents show under it, so it's the whole card.
   row({ w, i, g, tree }, t, count, { tabs = 0, closed = false, sessions = false, only = true } = {}) {
     const on = w.active;
-    const fromIndex = this.pressed === null ? -1 : spaces().findIndex(s => s.id === this.pressed);
     // Its agents' marks only while they're hidden: shown, they say it themselves.
     const marks = closed ? this.agentMarks(t, count, w.id) : null;
     const h = rowHeight({ tree });
@@ -644,35 +687,8 @@ export class Spaces {
       .when(!only, (el) => el.border_b(1).border_color(t.border))
       .bg(tint)
       .hover((s) => s.bg(lit))
-      .when(this.pressed === w.id && this.over !== w.id, (el) => el.opacity(0.5))
-      .when(this.pressed !== null && this.over === w.id && this.pressed !== w.id, (el) => el.child(
-        div().absolute().left(0).right(0).h(2).bg(t.accent)
-          .when(fromIndex < i, line => line.bottom(0))
-          .when(fromIndex > i, line => line.top(0)),
-      ))
-      .on_mouse_down("left", () => {
-        this.pressed = w.id;
-        this.over = w.id;
-      })
-      .on_mouse_move((_e, cx) => {
-        const source = spaces().find(s => s.id === this.pressed);
-        const over = source && (source.machine ?? null) === (w.machine ?? null) ? w.id : null;
-        if (this.pressed !== null && this.over !== over) {
-          this.over = over;
-          cx.notify();
-        }
-      })
-      .on_mouse_up("left", (_e, cx) => {
-        const from = this.pressed;
-        const over = this.over;
-        this.pressed = null;
-        this.over = null;
-        if (from !== null && over === w.id && from !== w.id) {
-          const index = spaces().findIndex(s => s.id === w.id);
-          if (index !== -1) run("space.move", { id: from, index: index + 1 });
-        } else if (from === w.id) run("space.select", { id: w.id });
-        cx.notify();
-      })
+      // The press starts a drag (or a click); the list follows it from there.
+      .on_mouse_down("left", (e, cx) => this.press(w, e, cx))
       .on_mouse_down("right", () => this.menu(w))
       .child(
         h_flex()
@@ -719,6 +735,267 @@ export class Spaces {
     if (list[next] !== list[at]) run("pane.focus", { pane: list[next] });
   }
 
+  // Dragging a space by its header (see HOLD_MS). `this.dnd`: { id, seq, phase:
+  // "press" | "lift" | "drop", grab: where in its card the pointer holds it,
+  // pointer: the pointer's y in the list, from / target: the slot it came from and
+  // the one it would land in, index: space.move's for that, landed: the list has it
+  // there }.
+
+  // Its card is up: drawn with an accent edge (not while it settles).
+  isLifted(id) {
+    const d = this.dnd;
+    return d?.phase === "lift" && Boolean(this.units?.get(d.id)?.family.includes(id));
+  }
+
+  press(w, e, cx) {
+    if (narrow()) return;
+    const zoom = settings().zoom || 1;
+    this.dnd?.hold?.cancel();
+    this.dnd?.scroller?.cancel();
+    const d = {
+      id: w.id,
+      seq: ++this.dndSeq,
+      phase: "press",
+      x0: e.position.x,
+      y0: e.position.y,
+      // The header's own y, under the card's top edge.
+      grab: e.local_position ? e.local_position.y / zoom + 1 : H_SPACE / 2,
+      pointer: null,
+      moved: false,
+    };
+    this.dnd = d;
+    d.hold = cx.timer.after(HOLD_MS, (cx) => {
+      if (this.dnd !== d || d.phase !== "press") return;
+      this.lift(d);
+      cx.notify();
+    });
+  }
+
+  lift(d) {
+    d.hold?.cancel();
+    d.phase = "lift";
+    this.scroll.list.animateUntil = 0;
+  }
+
+  // Any pointer move over the list: past SLOP a press lifts; a lifted card follows.
+  dragMove(e, cx) {
+    const d = this.dnd;
+    if (!d || d.phase === "drop") return;
+    const zoom = settings().zoom || 1;
+    const far = Math.hypot(e.position.x - d.x0, e.position.y - d.y0) >= SLOP * zoom;
+    if (d.phase === "press") {
+      if (!far) return;
+      this.lift(d);
+    }
+    d.moved ||= far;
+    const y = e.local_position.y / zoom;
+    if (y === d.pointer) return;
+    d.pointer = y;
+    if (d.moved) this.autoScroll(cx);
+    cx.notify();
+  }
+
+  // A left release over the list: a press that never moved is a click; a moved
+  // card lands in its slot.
+  dragRelease(cx) {
+    const d = this.dnd;
+    if (!d) return;
+    d.hold?.cancel();
+    if (d.phase === "press") {
+      this.dnd = null;
+      run("space.select", { id: d.id });
+      cx.notify();
+      return;
+    }
+    if (d.phase !== "lift") return;
+    if (!d.moved) {
+      d.target = d.from;
+      run("space.select", { id: d.id });
+    } else if (d.target !== d.from && d.index) run("space.move", { id: d.id, index: d.index });
+    this.settle(d, cx);
+  }
+
+  // The pointer left the list (its release can't be heard there): a press is
+  // forgotten, a lifted card goes back where it was.
+  dragLeave(cx) {
+    const d = this.dnd;
+    if (!d) return;
+    if (d.phase === "press") {
+      d.hold?.cancel();
+      this.dnd = null;
+      cx.notify();
+    } else if (d.phase === "lift") {
+      d.target = d.from;
+      this.settle(d, cx);
+    }
+  }
+
+  // The card glides into its slot; once the list has the space there (or after a
+  // while, should the move not take), the list draws it in place again.
+  settle(d, cx) {
+    d.phase = "drop";
+    d.at = Date.now();
+    d.scroller?.cancel();
+    d.scroller = null;
+    const check = (cx) => {
+      if (this.dnd !== d) return;
+      if (d.landed || Date.now() - d.at > 1500) {
+        this.dnd = null;
+        cx.notify();
+      } else cx.timer.after(100, check);
+    };
+    cx.timer.after(SETTLE_MS + 20, check);
+    cx.notify();
+  }
+
+  // Within EDGE of the list's top or bottom: how far a tick scrolls, faster closer.
+  edgeSpeed() {
+    const d = this.dnd;
+    const h = this.viewH ?? 0;
+    if (d?.phase !== "lift" || !d.moved || d.pointer == null || !h) return 0;
+    if (d.pointer < EDGE) return -EDGE_SPEED * Math.min(1, (EDGE - d.pointer) / EDGE);
+    if (d.pointer > h - EDGE) return EDGE_SPEED * Math.min(1, (d.pointer - h + EDGE) / EDGE);
+    return 0;
+  }
+
+  // Scrolls the list under a card held near its edge, until it's moved off it or
+  // the list can't go further.
+  autoScroll(cx) {
+    const d = this.dnd;
+    if (!d || d.scroller || !this.edgeSpeed()) return;
+    d.scroller = cx.timer.every(16, (cx) => {
+      const v = this.dnd === d ? this.edgeSpeed() : 0;
+      const st = this.scroll.list;
+      const max = Math.max(0, (this.listTotal ?? 0) - (this.viewH ?? 0));
+      const next = Math.max(0, Math.min(max, (st.offset ?? 0) + v));
+      if (!v || next === st.offset) {
+        d.scroller?.cancel();
+        d.scroller = null;
+        return;
+      }
+      st.offset = next;
+      st.animateUntil = 0;
+      cx.notify();
+    });
+  }
+
+  // While a space is lifted or settling: its card's pieces (its worktrees' too)
+  // out of the list, drawn over it where the pointer holds it, and a slot before
+  // each other unit of its lane and after the last. All are empty but the one it
+  // would land in, as tall as the card: switching, one closes as the other opens,
+  // so the cards between slide. That's the slot whose top is nearest the card's
+  // (the card's edge has crossed the middle of the one it passes).
+  // -> { items, overlay }; sets the drag's from, target, index and landed.
+  dragLayout(t, items) {
+    const d = this.dnd;
+    if (!d || d.phase === "press") return { items, overlay: null };
+    const unit = this.units?.get(d.id);
+    const family = new Set(unit?.family ?? []);
+    const first = items.findIndex((it) => family.has(it.unit));
+    if (first < 0) {
+      // Gone while dragged (closed, its machine folded).
+      d.scroller?.cancel();
+      this.dnd = null;
+      return { items, overlay: null };
+    }
+    let last = first;
+    while (last + 1 < items.length && family.has(items[last + 1].unit)) last++;
+    const src = items.slice(first, last + 1);
+    const rest = [...items.slice(0, first), ...items.slice(last + 1)];
+    const sumH = (list) => list.reduce((s, it) => s + it.h, 0);
+    const H = sumH(src);
+
+    // The slots, where the list is without the card.
+    const laneOf = new Map(); // piece's unit -> the lane unit it moves with
+    for (const [id, u] of this.units) if (u.lane === unit.lane && id !== d.id) for (const f of u.family) laneOf.set(f, id);
+    const slots = [];
+    let y = 0, prev = null, end = null, lastUnit = null;
+    rest.forEach((it, i) => {
+      const owner = laneOf.get(it.unit) ?? null;
+      if (owner && owner !== prev) slots.push({ key: owner, at: i, top: y });
+      y += it.h;
+      if (owner) {
+        end = { key: "end", at: i + 1, top: y };
+        lastUnit = owner;
+      }
+      prev = owner;
+    });
+    slots.push(end ?? { key: "end", at: first, top: sumH(rest.slice(0, first)) });
+    const from = laneOf.get(rest[first]?.unit) ?? "end";
+    const fromSlot = slots.find((s) => s.key === from) ?? slots[slots.length - 1];
+
+    const st = this.scroll.list;
+    const off = Math.max(0, Math.min(st.offset ?? 0, sumH(items) - (this.viewH ?? 0)));
+    // Lifted by holding still: held where it is until the pointer moves.
+    d.pointer ??= fromSlot.top - off + d.grab;
+    const cardTop = d.pointer + off - d.grab;
+    let target;
+    if (d.phase === "lift") {
+      d.from = from;
+      target = slots.reduce((best, s) => (Math.abs(s.top - cardTop) < Math.abs(best.top - cardTop) ? s : best));
+      d.target = target.key;
+      // space.move's position (1 = first): just before the space after the slot,
+      // else after the last of the lane's last unit.
+      const order = spaces().map((s) => s.id).filter((id) => id !== d.id);
+      const pos = target.key !== "end" ? order.indexOf(target.key)
+        : lastUnit ? Math.max(...this.units.get(lastUnit).family.map((id) => order.indexOf(id))) + 1 : -1;
+      d.index = pos >= 0 ? pos + 1 : null;
+    } else target = slots.find((s) => s.key === d.target) ?? fromSlot;
+    d.landed = from === d.target;
+
+    const slot = (s) => {
+      const open = s.key === target.key;
+      return {
+        h: open ? H : 0,
+        el: div()
+          .id(`dnd-${d.seq}-${s.key}`)
+          .flex_none()
+          .h(open ? H : 0)
+          .overflow_hidden()
+          .transition("height", { duration: PART_MS, easing: "ease-out" })
+          // Where it will land: a faint outline, mostly under the card.
+          .child(div()
+            .h(H - CARD_GAP)
+            .rounded(CARD_R)
+            .border(1)
+            .border_dashed()
+            .border_color(alpha(t.accent, "59"))
+            .bg(alpha(t.accent, "0d"))),
+      };
+    };
+    const out = [];
+    rest.forEach((it, i) => {
+      for (const s of slots) if (s.at === i) out.push(slot(s));
+      out.push(it);
+    });
+    for (const s of slots) if (s.at === rest.length) out.push(slot(s));
+
+    // The card: each space's pieces in one box with the shadow under it (not
+    // under the room between cards), the room after each kept.
+    const cards = [];
+    for (const it of src) {
+      const open = cards[cards.length - 1];
+      if (it.spacer) cards.push({ room: it.el });
+      else if (open?.unit === it.unit) open.els.push(it.el);
+      else cards.push({ unit: it.unit, els: [it.el] });
+    }
+    const up = d.phase === "lift";
+    const overlay = v_flex()
+      .id(`dnd-card-${d.seq}`)
+      .absolute()
+      .left(8)
+      .right(8)
+      .top(up ? cardTop : target.top)
+      .transition("top", up ? { duration: 0 } : { duration: SETTLE_MS, easing: "ease-out" })
+      .when(up, (el) => el.cursor_grabbing())
+      .children(cards.map((c) => c.room ?? v_flex()
+        .flex_none()
+        .rounded(CARD_R)
+        .when(up, (el) => el.shadow_2xl())
+        .children(c.els)));
+    return { items: out, overlay };
+  }
+
   render() {
     const t = theme();
     const collapsed = narrow();
@@ -746,6 +1023,12 @@ export class Spaces {
 
     // Agent rows sit inside a card: the cache tick's lane is that much narrower.
     this.rowInset = collapsed ? 0 : CARD_INSET;
+    // The rail has no drag: one folded mid-drag ends it.
+    if (collapsed && this.dnd) {
+      this.dnd.hold?.cancel();
+      this.dnd.scroller?.cancel();
+      this.dnd = null;
+    }
     const counts = countBySpace(); const T2 = performance.now(); // DEBUG
     const items = this.grouped(t, collapsed, counts, R);
     const T3 = performance.now(); // DEBUG
@@ -763,7 +1046,9 @@ export class Spaces {
     const current = focused()?.pane ?? null;
     const followKey = `${active ?? ""}|${current ?? ""}`;
     let followAt = null;
-    if (this.viewH && followKey !== this.followKey) {
+    // Not under a dragged card: once it's down.
+    const dragging = this.dnd != null && this.dnd.phase !== "press";
+    if (this.viewH && followKey !== this.followKey && !dragging) {
       let at = current ? items.findIndex((it) => it.pane === current) : -1;
       if (at < 0) at = items.findIndex((it) => it.id === active);
       if (at >= 0) {
@@ -772,20 +1057,21 @@ export class Spaces {
       }
     }
 
+    const { items: shown, overlay } = this.dragLayout(t, items);
+    this.listTotal = shown.reduce((s, it) => s + it.h, 0);
+
     // No title row: new spaces come from a machine's + (or space.new).
     return v_flex().size_full().min_h(0).pt(4).bg(t.chrome).text_size(13)
-      .child(scrollList(this, t, items, this.scroll.list, {
+      .child(scrollList(this, t, shown, this.scroll.list, {
         collapsed,
         followAt,
         // A card's pieces meet edge to edge; cards keep their own room between.
         gap: 0,
-        // A release anywhere over the list ends a row drag (the rows' own come first).
-        onMouseUp: (cx) => {
-          if (this.pressed === null) return;
-          this.pressed = null;
-          this.over = null;
-          cx.notify();
-        },
+        // A space's header drag, followed over the whole list.
+        overlay,
+        onMouseMove: (e, cx) => this.dragMove(e, cx),
+        onMouseUp: (cx) => this.dragRelease(cx),
+        onLeave: (cx) => this.dragLeave(cx),
       }))
       .when(collapsed, (el) => el.child(h_flex().h(28).flex_none().items_center().justify_center()
         .child(div().id("collapse").text_size(13).text_color(t.dim).hover((s) => s.text_color(t.foreground)).on_click(toggleSidebar).child("»"))));

@@ -11,6 +11,11 @@
 //   followAt  a row to bring into view, animated.
 //   onEnd     runs when the wheel or the thumb reaches the bottom.
 //   onMouseUp runs on any left release over the list (after the rows' own).
+//   onMouseMove (event, cx) for any pointer move over the list; its
+//             local_position is the list's own.
+//   onLeave   runs when the pointer leaves the list.
+//   overlay   drawn over the rows, scrolling with them (absolute, in the rows'
+//             coordinates): a space being dragged.
 //   gap       the room between rows (GAP unless set; 0 for rows drawn as pieces
 //             of one card).
 
@@ -28,7 +33,7 @@ const THUMB_W = 3, THUMB_RIGHT = 2, THUMB_HIT = 7;
 const SCROLL_MS = 280;
 const FOLLOW_MARGIN = 8;
 
-export function scrollList(owner, t, items, st, { collapsed, followAt = null, onEnd = null, onMouseUp = null, gap = GAP }) {
+export function scrollList(owner, t, items, st, { collapsed, followAt = null, onEnd = null, onMouseUp = null, onMouseMove = null, onLeave = null, overlay = null, gap = GAP }) {
   const now = Date.now();
   let y = 0;
   const tops = items.map((it) => {
@@ -79,6 +84,7 @@ export function scrollList(owner, t, items, st, { collapsed, followAt = null, on
     })
     .on_scroll_wheel((e, cx) => scrollTo(st.offset - e.delta.y / zoom, cx))
     .on_mouse_move((e, cx) => {
+      onMouseMove?.(e, cx);
       if (!owner.drag) return;
       const track = viewH - thumbH;
       if (track > 0) scrollTo(owner.drag.off + ((e.position.y - owner.drag.y) / zoom) * (maxOff / track), cx);
@@ -87,8 +93,10 @@ export function scrollList(owner, t, items, st, { collapsed, followAt = null, on
       owner.drag = null;
       onMouseUp?.(cx);
     })
-    .on_hover((on) => {
-      if (!on) owner.drag = null;
+    .on_hover((on, cx) => {
+      if (on) return;
+      owner.drag = null;
+      onLeave?.(cx);
     })
     .child(v_flex()
       .id("ag-content")
@@ -99,7 +107,8 @@ export function scrollList(owner, t, items, st, { collapsed, followAt = null, on
       .transition("top", motion)
       .px(collapsed ? 0 : 8)
       .gap(gap)
-      .children(items.map((it) => it.el)))
+      .children(items.map((it) => it.el))
+      .when(Boolean(overlay), (el) => el.child(overlay)))
     .when(maxOff > 0, (el) => el.child(div()
       .id("ag-thumb")
       .absolute()
