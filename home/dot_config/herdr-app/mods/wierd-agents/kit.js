@@ -63,13 +63,28 @@ export function tree(all, addr, lead = []) {
   });
 }
 
-// A status's mark: working spins, needs you is a red pill ("!" when compact,
-// where a header or a count already says it), done a dot, idle a ring.
+// A status's mark: working a still ring with an arc, needs you a red pill ("!"
+// when compact, where a header or a count already says it), done a dot, idle a
+// ring. Nothing spins: any running animation makes the whole window redraw every
+// frame (~20% GPU for as long as an agent works).
 export function statusMark(t, status, compact = false) {
   const color = t[status] ?? t.dim;
-  if (status === "working") return svg("mods/workspace-chrome/spinner.svg").size(12).mx(1).flex_none().text_color(t.working).spin(900);
+  if (status === "working") return svg("mods/workspace-chrome/spinner.svg").size(12).mx(1).flex_none().text_color(t.working);
   if (status === "blocked" && compact) return div().size(14).flex_none().rounded(4).bg(t.blocked + "26").text_size(10.5).font_bold().text_color(t.blocked).flex().items_center().justify_center().child("!");
   if (status === "blocked") return div().flex_none().px(6).h(18).rounded(5).bg(t.blocked + "26").text_size(10.5).font_semibold().text_color(t.blocked).flex().items_center().child("Needs you");
   if (status === "idle") return div().size(7).mx(3).flex_none().rounded(4).border(1.5).border_color(t.idle ?? t.dim);
   return div().size(7).mx(3).flex_none().rounded(4).bg(status === "done" ? color : t.dim + "00");
+}
+
+// An agent card's background by its status, in its mark's color: working, done,
+// needs you; idle (and anything else) none. `hover`: a step stronger.
+const TINT = { working: true, done: true, blocked: true };
+
+// The focused row's accent ring: drawn over the row (which must be relative), so
+// nothing in it moves. `radius`: the row's own.
+export const focusRing = (t, radius = 8) => div().absolute().top(0).left(0).right(0).bottom(0).rounded(radius).border(1).border_color(t.accent);
+export function statusTint(t, status, hover = false) {
+  const color = TINT[status] ? t[status] : null;
+  if (!color || !/^#[0-9a-f]{6}$/i.test(color)) return null;
+  return color + (hover ? "3d" : "26");
 }

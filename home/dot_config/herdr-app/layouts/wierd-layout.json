@@ -94,7 +94,7 @@
                 "pane": {
                   "header": {
                     "content": {
-                      "mod": "pane"
+                      "mod": "wierd-pane"
                     },
                     "reveal": "always",
                     "height": 30,

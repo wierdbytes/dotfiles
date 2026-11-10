@@ -1,11 +1,13 @@
 // Agent rows and pi's sessions for the sidebar's one panel (spaces.js), and the
 // session peek bar (props {peekBar}).
 //
-// Each agent reads in two lines: its status and its task; then what it runs with
+// Each agent is a card tinted by its status (working, done, needs you, in its
+// mark's color; idle plain; the focused one ringed in accent), nothing animated.
+// It reads in two lines: its status and its task; then what it runs with
 // (the provider's mark, model and @effort from @wierdbytes/pi-herdr's labels, else
 // its program), its sub-agents and terminals, its context size and how long it has
 // been like this. Under that line, a thin bar fills with the share of the model's
-// window in use, green, then yellow past 60% and red past 80%; a tick on it slides
+// window in use, green, then yellow past 60% and red past 80%; a tick on it steps
 // from its right end to its left as the prompt cache runs out, and the context
 // size reads green while the cache is warm, yellow in its last 30s. Parents take
 // their most urgent sub-agent's place; a viewed done agent stays with Done until left.
@@ -23,7 +25,7 @@ import { div, image, svg } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
 import { agents, terminals, focused, spaces, panes, run, theme, openOverlay, closeOverlay, props, settings, exec, hc, home, appHome, notify } from "herdr";
 import { agentMeta, shortModel, providerOf, tokens, duration, nextTick, effortColor, ctxColor, maxGradient, cacheLeft, cacheState, cacheColor, CACHE_WARN_MS } from "./meta.js";
-import { narrow, place, RANK, kidStatus, isAgent, tree, statusMark } from "./kit.js";
+import { narrow, place, RANK, kidStatus, isAgent, tree, statusMark, statusTint, focusRing } from "./kit.js";
 
 // The context size's slot ("69.2k" in the mono face); a pi with no context yet
 // keeps this much room, so the badges don't jump when the number shows up.
@@ -35,10 +37,11 @@ const BAR_H = 2, FILL_ALPHA = "99";
 // The bar's inset from its row's sides, and how far it sits above the row's
 // bottom.
 export const BAR_INSET = 8, BAR_BOTTOM = 3;
-// The cache tick: its width, how far it rises above the bar, and how often the
-// list aims it anew (it slides between those aims natively, so the list redraws
-// only this often).
-const TICK_W = 2, TICK_UP = 4, TICK_STEP = 5000;
+// The cache tick: its width, how far it rises above the bar, and the least time
+// between its steps. It steps a pixel at a time with no transition: a transition
+// lasting the cache's whole life keeps the window redrawing every frame (~25% GPU
+// for as long as any cache is warm). One redraw per pixel is ~1/s for a 5m cache.
+const TICK_W = 2, TICK_UP = 4, TICK_MIN_STEP = 1000;
 // The list's width less the tick's lane: the list's padding (8 + 8), the bar's
 // inset in its row (8 + 8) and the tick's own width; plus what the panel puts
 // around a row (`owner.rowInset`: a card's sides).
@@ -146,8 +149,6 @@ export class Agents {
     // Each session's prompt cache expiry, as its pi last said (see rememberCaches).
     this.sessCache = JSON.parse(localStorage.getItem("caches") ?? "{}");
     localStorage.removeItem("cache");
-    // Where each cache tick was last aimed, to tell a refresh (a jump back to the right).
-    this.tickAim = {};
     // The space whose sessions the panel shows; null: the spaces and their agents.
     this.sessionsFor = null;
     cx.timer.every(300, (cx) => {
@@ -445,8 +446,8 @@ export class Agents {
   // the used share filled in one color (green, yellow or red as a whole, like
   // pi-statusline's bar), softened. Placed over the row, so the lines above never
   // move. No `full` (the model's window is unknown): the track alone.
-  // `tick` ({left, ms}): the prompt cache's tick, at `left` (0..1) of the bar,
-  // sliding there over `ms`; null when the cache is gone or not known.
+  // `tick` ({left}): the prompt cache's tick, at `left` (0..1) of the bar; null
+  // when the cache is gone or not known.
   ctxBar(t, dark, full, key, tick) {
     const color = ctxColor(full, t, dark);
     const soft = /^#[0-9a-f]{6}$/i.test(color) ? `${color}${FILL_ALPHA}` : color;
@@ -468,15 +469,13 @@ export class Agents {
         .rounded(1)
         .bg(soft)))
       // Like the limits mod's tick, but rising from the bar only. Its lane is the
-      // bar less its width, so at 100% the tick is still on the bar. In px once the
-      // list's width is known: a transition moves px, not %.
+      // bar less its width, so at 100% the tick is still on the bar. In whole px
+      // once the list's width is known (see cacheTick), so it moves a pixel a step.
       .when(Boolean(tick), (el) => el.child(div()
         .id(`tick-${key}`)
         .absolute()
         .bottom(0)
-        .when(this.viewW > 0, (el) => el
-          .left(Math.round(tick.left * (this.viewW - TICK_LANE_INSET) * 100) / 100)
-          .transition("left", { duration: tick.ms, easing: "linear" }))
+        .when(this.viewW > 0, (el) => el.left(Math.round(tick.left * (this.viewW - TICK_LANE_INSET))))
         .when(!(this.viewW > 0), (el) => el.left(`${(tick.left * 100).toFixed(2)}%`))
         .w(TICK_W)
         .h(BAR_H + TICK_UP)
@@ -552,24 +551,23 @@ export class Agents {
     };
     // The prompt cache's tick (pi-herdr's agent.cache_until / agent.cache_ttl):
     // the share of its lifetime left, from the bar's right end (just refreshed)
-    // to its left (expiring); gone once it expires. Each render aims it at where
-    // it will be at the next TICK_STEP boundary (the last one: the expiry) and it
-    // slides there natively; the redraw at that boundary aims it further. Other
-    // redraws keep the same aim, so a slide is never retargeted. A refresh, a new
-    // lifetime, or a pause in redraws jumps it to where it belongs.
-    R.cacheTick = (key, cache) => {
+    // to its left (expiring); gone once it expires. Placed where it is now, with
+    // no transition; the list redraws when it would move by a pixel (at least
+    // TICK_MIN_STEP apart, and at the expiry, which removes it).
+    R.cacheTick = (_key, cache) => {
       const until = cache?.until, ttl = cache?.ttl;
-      if (cacheLeft(until, ttl, now) == null) {
-        delete this.tickAim[key];
-        return null;
-      }
-      const next = Math.min(until, (Math.floor(now / TICK_STEP) + 1) * TICK_STEP);
-      R.wake(next);
-      const aim = this.tickAim[key];
-      if (aim?.next === next && aim.until === until && aim.ttl === ttl) return aim;
-      const left = cacheLeft(until, ttl, next) ?? 0;
-      const follows = aim?.until === until && aim.ttl === ttl && left <= aim.left && aim.left - left <= (1.5 * TICK_STEP) / ttl;
-      return (this.tickAim[key] = { until, ttl, next, left, ms: follows ? Math.max(0, next - now) : 0 });
+      const left = cacheLeft(until, ttl, now);
+      if (left == null) return null;
+      // The lane as ctxBar sizes it (asked per row: the panel sets its inset after prepare).
+      const lane = this.viewW > 0 ? this.viewW - TICK_LANE_INSET : 0;
+      if (lane > 0) {
+        // The next moment its whole-px position changes: when the time left
+        // crosses the next lower half-pixel (Math.round's boundary).
+        const px = Math.round(left * lane);
+        const at = until - ((px - 0.5) / lane) * ttl;
+        R.wake(Math.min(until, Math.max(now + TICK_MIN_STEP, Math.ceil(at))));
+      } else R.wake(Math.min(until, now + TICK_MIN_STEP));
+      return { left };
     };
     // The context size's color by the cache's expiry, and a redraw when it
     // turns yellow and when it goes.
@@ -635,6 +633,7 @@ export class Agents {
       h: H_PANE,
       el: h_flex()
         .id(`pn-${p.pane}`)
+        .relative()
         .h(H_PANE)
         .px(8)
         .gap(9)
@@ -657,7 +656,9 @@ export class Agents {
           .text_size(10.5)
           .text_color(t.dim)
           .when(Boolean(where), (el) => el.tooltip(where))
-          .child(shown ?? "")),
+          .child(shown ?? ""))
+        // Focused: the same accent ring as an agent's card.
+        .when(p.focused, (el) => el.child(focusRing(t))),
     };
   }
 
@@ -716,6 +717,9 @@ export class Agents {
     const ctx = meta?.ctx > 0 ? tokens(meta.ctx) : null;
     const full = ctx && meta?.ctxMax ? Math.min(1, meta.ctx / meta.ctxMax) : null;
     const cache = meta ? { until: meta.cacheUntil, ttl: meta.cacheTtl } : null;
+    // The card's background says what it's doing, in its mark's color (working,
+    // done, needs you; idle plain). The focused one gets an accent ring on top.
+    const tint = statusTint(t, a.status);
 
     return v_flex()
       .id(`ag-${a.address}`)
@@ -726,9 +730,10 @@ export class Agents {
       .gap(2)
       .flex_none()
       .rounded(8)
-      .when(a.focused, (el) => el.bg(t.selected))
+      .when(Boolean(tint), (el) => el.bg(tint))
+      .when(!tint && a.focused, (el) => el.bg(t.selected))
       .cursor_pointer()
-      .hover((s) => s.bg(t.hover))
+      .hover((s) => s.bg(tint ? statusTint(t, a.status, true) : t.hover))
       .on_hover((on, cx) => {
         if (on) this.hovered = a.address;
         else if (this.hovered === a.address) this.hovered = null;
@@ -780,7 +785,9 @@ export class Agents {
               .text_color(t.dim)
               .child(R.clock(when)))))))
       // Every pi has the bar, filled once it knows its context and window.
-      .when(Boolean(meta), (el) => el.child(this.ctxBar(t, dark, full, a.address, R.cacheTick(a.address, cache))));
+      .when(Boolean(meta), (el) => el.child(this.ctxBar(t, dark, full, a.address, R.cacheTick(a.address, cache))))
+      // The focus ring: drawn over the card, so nothing in it moves.
+      .when(a.focused, (el) => el.child(focusRing(t)));
   }
 
   // ---- Sessions ------------------------------------------------------------

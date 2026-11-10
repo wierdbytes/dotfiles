@@ -1012,9 +1012,7 @@ export class Spaces {
     }
     if (changed) setShared("space.colors", kept);
 
-    const T0 = performance.now(); // DEBUG
     const R = this.agents.prepare(t);
-    const T1 = performance.now(); // DEBUG
 
     // A space's sessions instead of the list (not on the rail; gone with its space).
     const sessionsOf = this.agents.sessionsFor ? sp.find((s) => s.id === this.agents.sessionsFor) : null;
@@ -1029,10 +1027,8 @@ export class Spaces {
       this.dnd.scroller?.cancel();
       this.dnd = null;
     }
-    const counts = countBySpace(); const T2 = performance.now(); // DEBUG
+    const counts = countBySpace();
     const items = this.grouped(t, collapsed, counts, R);
-    const T3 = performance.now(); // DEBUG
-    globalThis.__perf = { prepare: +(T1 - T0).toFixed(2), counts: +(T2 - T1).toFixed(2), grouped: +(T3 - T2).toFixed(2), items: items.length }; // DEBUG
     items.push({ el: div().id("spaces-end").h(H_END).flex_none(), h: H_END });
     // agent.next / agent.prev go down the list as it reads; agents not listed yet last.
     const inOrder = new Set(this.order.map((a) => a.address));

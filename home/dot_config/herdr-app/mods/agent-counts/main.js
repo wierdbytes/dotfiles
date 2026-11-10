@@ -1,5 +1,6 @@
 // Agent counts by status for the status bar, with the same status marks as the agents list:
-// working: the spinner, needs you: "!", done: a dot, idle: a ring.
+// working: a still spinner ring (no animation: it would redraw the window every frame),
+// needs you: "!", done: a dot, idle: a ring.
 // Working and idle always show; needs you and done only when there are some.
 // A click focuses the next agent with that status after the focused one, in the agents
 // sidebar's order (see sidebarOrder), wrapping around.
@@ -120,8 +121,7 @@ export default class AgentCounts extends View {
 // The agents mod's marks, compact form.
 function mark(t, status, live) {
   if (status === "working") {
-    const s = svg("mods/workspace-chrome/spinner.svg").size(12).mx(1).flex_none().text_color(live ? t.working : t.dim);
-    return live ? s.spin(900) : s;
+    return svg("mods/workspace-chrome/spinner.svg").size(12).mx(1).flex_none().text_color(live ? t.working : t.dim);
   }
   if (status === "blocked") return div().size(14).flex_none().rounded(4).bg(t.blocked + "26").text_size(10.5).font_bold().text_color(t.blocked).flex().items_center().justify_center().child("!");
   if (status === "idle") return div().size(7).mx(3).flex_none().rounded(4).border(1.5).border_color(t.idle ?? t.dim);

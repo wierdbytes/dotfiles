@@ -6,7 +6,7 @@
 // and meta.js here.
 
 import { View } from "gpui-kit";
-import { props, setShared, terminals, panes, spaces, agents, nextCommand } from "herdr";
+import { props, nextCommand } from "herdr";
 import { Agents } from "./agents.js";
 import { Spaces } from "./spaces.js";
 
@@ -23,21 +23,10 @@ export default class WierdAgents extends View {
         else if (c === "prev") this.panel.step(-1);
       }
     });
-    if (!props()?.peekBar) { // DEBUG
-      this.st = { n: 0, sum: 0, max: 0, over20: 0, over50: 0 }; // DEBUG
-      cx.timer.every(4000, () => { // DEBUG
-        const time = (f) => { const a = performance.now(); for (let i = 0; i < 5; i++) f(); return +((performance.now() - a) / 5).toFixed(2); }; // DEBUG
-        setShared("wierd.debug.perf", { last: globalThis.__perf, ...this.st, avg: +(this.st.sum / Math.max(1, this.st.n)).toFixed(1), reads: { terminals: time(terminals), panes: time(panes), spaces: time(spaces), agents: time(agents) } }); // DEBUG
-      }); // DEBUG
-    } // DEBUG
   }
 
   render(cx) {
-    const a = performance.now(); // DEBUG
-    const el = this.panel.render(cx);
-    const dt = performance.now() - a; // DEBUG
-    if (this.st) { if (this.st.n < 3) this.st[`r${this.st.n}`] = +dt.toFixed(1); this.st.n++; this.st.sum += dt; this.st.max = Math.max(this.st.max, +dt.toFixed(1)); if (dt > 20) this.st.over20++; if (dt > 50) this.st.over50++; } // DEBUG
-    return el;
+    return this.panel.render(cx);
   }
 
   async close(cx) {
