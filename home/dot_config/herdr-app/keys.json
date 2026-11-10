@@ -60,7 +60,8 @@
   },
   "layout:wierd-layout": {
     "cmd-]": "wierd-agents.next",
-    "cmd-[": "wierd-agents.prev"
+    "cmd-[": "wierd-agents.prev",
+    "cmd-shift-m": "wierd-tabs.memory"
   },
   "terminal": {
     "cmd-f": "terminal.search",

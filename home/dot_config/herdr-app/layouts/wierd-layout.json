@@ -75,7 +75,7 @@
           "id": "tabs",
           "type": "block",
           "content": {
-            "mod": "tabs"
+            "mod": "wierd-tabs"
           },
           "size": {
             "px": 42
@@ -135,6 +135,13 @@
                       "type": "block",
                       "content": {
                         "mod": "changes"
+                      }
+                    },
+                    {
+                      "id": "memory",
+                      "type": "block",
+                      "content": {
+                        "mod": "wierd-memory"
                       }
                     }
                   ],
