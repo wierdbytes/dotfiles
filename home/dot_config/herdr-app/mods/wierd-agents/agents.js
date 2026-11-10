@@ -2,7 +2,8 @@
 // session peek bar (props {peekBar}).
 //
 // Each agent is a card tinted by its status (working, done, needs you, in its
-// mark's color; idle plain; the focused one ringed in accent), nothing animated.
+// mark's color; idle plain; the focused one ringed in accent), nothing animated
+// but its move when the order changes (spaces.js slides it).
 // It reads in two lines: its status and its task; then what it runs with
 // (the provider's mark, model and @effort from @wierdbytes/pi-herdr's labels, else
 // its program), its sub-agents and terminals, its context size and how long it has
@@ -602,7 +603,8 @@ export class Agents {
   }
 
   // A tab's rows: its agents (each with its open sub-agents), then a line for each
-  // of its other panes. [{ el, h, pane?, addr? }]
+  // of its other panes. [{ el, h, key, pane?, addr? }] (`key`: the row's own, for
+  // the list to see it move).
   groupItems(R, g) {
     return [
       ...g.agents.flatMap((a) => this.agentItems(R, a)),
@@ -629,6 +631,7 @@ export class Agents {
     const room = (this.viewW > 0 ? this.viewW : 268) - 16 - 16 - 18 - 9 - Math.min(150, name.length * 7) - 9;
     const shown = where ? shortPath(where, Math.max(8, Math.floor(room / 6.4))) : null;
     return {
+      key: `pn-${p.pane}`,
       pane: p.pane,
       h: H_PANE,
       el: h_flex()
@@ -662,12 +665,12 @@ export class Agents {
     };
   }
 
-  // An agent's row and, when opened, its sub-agents and terminals: [{ el, h, addr?, pane? }].
+  // An agent's row and, when opened, its sub-agents and terminals: [{ el, h, key, addr?, pane? }].
   agentItems(R, a) {
     const subs = R.trees.get(a.address) ?? [];
-    const r = { el: this.row(R, a, subs), h: H_ROW, addr: a.address, pane: a.pane };
+    const r = { el: this.row(R, a, subs), h: H_ROW, key: `ag-${a.address}`, addr: a.address, pane: a.pane };
     if (!this.open.has(a.address) || subs.length === 0) return [r];
-    return [r, ...subs.map((s) => ({ el: this.subRow(R.t, s, R.shown, false), h: H_SUB }))];
+    return [r, ...subs.map((s) => ({ el: this.subRow(R.t, s, R.shown, false), h: H_SUB, key: `sub-${a.address}-${s.t.address}` }))];
   }
 
   row(R, a, subs) {

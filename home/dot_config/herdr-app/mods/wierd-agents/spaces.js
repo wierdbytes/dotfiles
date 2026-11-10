@@ -14,6 +14,8 @@
 // itself (scroll.js) and brings the focused pane, else the shown space, into view.
 // Click a space to switch, right-click for its menu, drag its header to reorder:
 // the card lifts and follows the pointer while the others part to make room.
+// When rows change places inside a card (an agent that needs you overtakes the
+// others, a row comes or goes above), each one that moved slides there (MOVE_MS).
 
 import { div, svg } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
@@ -46,6 +48,12 @@ const RAIL_W = 2, RAIL_TICK = 10;
 // it back. Within EDGE px of the list's top or bottom the list scrolls, up to
 // EDGE_SPEED px a tick.
 const HOLD_MS = 220, SLOP = 4, PART_MS = 160, SETTLE_MS = 180, EDGE = 32, EDGE_SPEED = 12;
+// A row that moved inside its card: while it slides (MOVE_MS), its place in the
+// card stays empty and the row is drawn over the list (a ghost), from where it
+// was to where it is now. Every row keeps an empty ghost at its place, so the
+// ghost knows where the row was. GHOST_X: a row's inset from the list's edge
+// (the list's padding, the card's border and padding).
+const MOVE_MS = 240, GHOST_X = 8 + 1 + CARD_PAD;
 // A color with an alpha, where it's a plain #rrggbb.
 const alpha = (c, a) => (/^#[0-9a-f]{6}$/i.test(c ?? "") ? `${c}${a}` : c);
 // The shown space's header tone (the accent, faint), and a split tab's joining
@@ -53,6 +61,12 @@ const alpha = (c, a) => (/^#[0-9a-f]{6}$/i.test(c ?? "") ? `${c}${a}` : c);
 const activeTint = (t) => alpha(t.accent, "26");
 const railColor = (t) => alpha(t.accent, "80");
 const rowHeight = ({ tree }) => (tree ? H_TREE : H_SPACE);
+// A card piece's height (see piece()): its content, the room under the last row,
+// and the card's top and bottom edges.
+const pieceHeight = (kind, h) => h
+  + (kind === "last" ? CARD_PAD : 0)
+  + (kind === "head" || kind === "only" ? 1 : 0)
+  + (kind === "end" || kind === "only" || kind === "last" ? 1 : 0);
 const where = (s, ps) => JSON.stringify([s.machine ?? null, place(s, ps)]);
 const base = (path) => path.replace(/\/+$/, "").split("/").pop();
 // Changes made outside Herdr (an editor's save, a commit in another app): looked
@@ -132,6 +146,11 @@ export class Spaces {
     // card are new elements each time, so nothing slides in from the last drag.
     this.dnd = null;
     this.dndSeq = 0;
+    // Rows sliding to their new place (see MOVE_MS): key -> { until, d: how far,
+    // down positive }; where each row was at the last render; when the last one lands.
+    this.flips = new Map();
+    this.flipPrev = null;
+    this.flipEnd = 0;
     this.machines = [];
     // Each list's scroll position (spaces and agents; a space's sessions), and
     // the space and agent it last brought into view.
@@ -170,7 +189,10 @@ export class Spaces {
     for (const s of sp) if (!this.shown.has(s.id)) this.born[s.id] ??= now;
     const due = this.due(now, sp, panes());
     if (due.size) this.refreshGit(due, cx);
-    if (sp.some((s) => !this.shown.has(s.id)) || this.orderingDue(now)) cx.notify();
+    // Sliding rows landed: back into their cards.
+    const landed = this.flipEnd > 0 && now >= this.flipEnd;
+    if (landed) this.flipEnd = 0;
+    if (sp.some((s) => !this.shown.has(s.id)) || this.orderingDue(now) || landed) cx.notify();
   }
 
   // Places whose git could have changed: new ones (a new space, a cd), where a
@@ -457,6 +479,15 @@ export class Spaces {
       const after = { el: div().h(CARD_GAP).flex_none(), h: CARD_GAP, spacer: true };
       const lifted = this.isLifted(r.w.id);
       const piece = (kind, h, child = null, rail = null) => this.piece(t, kind, h, child, rail, lifted);
+      // A row's piece (and the joining line's stretch over the room above it,
+      // `owner`: the row's key), built once the list knows which rows slide (render).
+      const lazy = (kind, h, child, rail, extra) => ({
+        ...extra,
+        h: pieceHeight(kind, h),
+        row: child,
+        rowH: h,
+        build: (away) => this.piece(t, kind, h, away ? null : child, away ? null : rail, lifted).el,
+      });
       if (!open) return [{ ...piece("only", rowHeight(r), head), id: r.w.id }, after];
       // Every row's highlight stays CARD_PAD from the header, from the next row and
       // from the card's bottom, whatever the row (an agent with its context bar,
@@ -476,8 +507,8 @@ export class Spaces {
             const last = i === groups.length - 1 && k === its.length - 1;
             sealed ||= last;
             return [
-              ...(k > 0 ? [piece("side", CARD_PAD, null, joined ? "mid" : null)] : []),
-              { ...piece(last ? "last" : "side", it.h, it.el, rail(k)), pane: it.pane },
+              ...(k > 0 ? [joined ? lazy("side", CARD_PAD, null, "mid", { owner: it.key }) : piece("side", CARD_PAD)] : []),
+              lazy(last ? "last" : "side", it.h, it.el, rail(k), { key: it.key, pane: it.pane, rail: rail(k), railUp: joined && k > 0 }),
             ];
           }),
         ];
@@ -596,7 +627,7 @@ export class Spaces {
     const top = kind === "head" || kind === "only";
     const low = kind === "end" || kind === "only" || kind === "last";
     const pad = kind === "last" ? CARD_PAD : 0;
-    const total = h + pad + (top ? 1 : 0) + (low ? 1 : 0);
+    const total = pieceHeight(kind, h);
     const el = div()
       .h(total)
       .flex_none()
@@ -879,6 +910,76 @@ export class Spaces {
     });
   }
 
+  // Where every row is in its card now, against the last render: those that moved
+  // in the same card (not the card itself moving) slide from where they were.
+  // `still`: false while a space is dragged (its card's rows stay in it).
+  // -> the keys of the rows sliding now.
+  moves(items, now, still) {
+    const pos = new Map();
+    const cardTop = new Map();
+    let y = 0;
+    for (const it of items) {
+      if (it.unit != null && !cardTop.has(it.unit)) cardTop.set(it.unit, y);
+      if (it.key) pos.set(it.key, { y, rel: y - cardTop.get(it.unit), unit: it.unit });
+      y += it.h;
+    }
+    const prev = this.flipPrev;
+    this.flipPrev = pos;
+    if (!still) this.flips.clear();
+    else if (prev) {
+      for (const [k, p] of pos) {
+        const q = prev.get(k);
+        if (q && q.unit === p.unit && q.rel !== p.rel) this.flips.set(k, { until: now + MOVE_MS + 40, d: p.y - q.y });
+      }
+    }
+    for (const [k, f] of this.flips) if (f.until <= now || !pos.has(k)) this.flips.delete(k);
+    this.flipEnd = this.flips.size ? Math.max(...[...this.flips.values()].map((f) => f.until)) : 0;
+    return new Set(this.flips.keys());
+  }
+
+  // Every row's ghost at its place in the list: empty, but where the row was, so a
+  // row that moved slides from there. A sliding one draws the row (on the card's
+  // own color, so rows passing each other don't show through) and its stretch of
+  // a split tab's joining line; the ones going up on top.
+  ghosts(t, items, moving) {
+    const out = [];
+    let y = 0;
+    for (const it of items) {
+      if (it.key) out.push({ it, y, on: moving.has(it.key), d: this.flips.get(it.key)?.d ?? 0 });
+      y += it.h;
+    }
+    out.sort((a, b) => Number(a.on) - Number(b.on) || b.d - a.d);
+    const glide = { duration: MOVE_MS, easing: "ease-in-out" };
+    return div()
+      .absolute()
+      .top(0)
+      .left(0)
+      .right(0)
+      .h(0)
+      .children(out.map(({ it, y, on }) => div()
+        .id(`fl-${it.key}`)
+        .absolute()
+        .left(GHOST_X)
+        .right(GHOST_X)
+        .top(y)
+        .transition("top", on ? glide : { duration: 0 })
+        .h(on ? it.rowH : 0)
+        .when(on, (el) => el
+          .rounded(ROW_R)
+          .bg(t.surface)
+          .child(it.row)
+          .when(Boolean(it.rail), (el) => el.child(div()
+            .absolute()
+            .left(0)
+            .top(it.railUp ? -CARD_PAD : 0)
+            .h(it.rowH + (it.railUp ? CARD_PAD : 0))
+            .w(RAIL_TICK)
+            .border_color(railColor(t))
+            .border_l(RAIL_W)
+            .when(it.rail === "start", (el) => el.border_t(RAIL_W).rounded_tl(ROW_R))
+            .when(it.rail === "end", (el) => el.border_b(RAIL_W).rounded_bl(ROW_R)))))));
+  }
+
   // While a space is lifted or settling: its card's pieces (its worktrees' too)
   // out of the list, drawn over it where the pointer holds it, and a slot before
   // each other unit of its lane and after the last. All are empty but the one it
@@ -1017,7 +1118,12 @@ export class Spaces {
     // A space's sessions instead of the list (not on the rail; gone with its space).
     const sessionsOf = this.agents.sessionsFor ? sp.find((s) => s.id === this.agents.sessionsFor) : null;
     if (this.agents.sessionsFor && !sessionsOf) this.agents.hideSessions();
-    if (sessionsOf && !collapsed) return this.sessionsView(t, R, sessionsOf);
+    if (sessionsOf && !collapsed) {
+      // Back from the sessions, the list shows as it is, nothing sliding.
+      this.flipPrev = null;
+      this.flips.clear();
+      return this.sessionsView(t, R, sessionsOf);
+    }
 
     // Agent rows sit inside a card: the cache tick's lane is that much narrower.
     this.rowInset = collapsed ? 0 : CARD_INSET;
@@ -1028,8 +1134,12 @@ export class Spaces {
       this.dnd = null;
     }
     const counts = countBySpace();
-    const items = this.grouped(t, collapsed, counts, R);
-    items.push({ el: div().id("spaces-end").h(H_END).flex_none(), h: H_END });
+    const laid = this.grouped(t, collapsed, counts, R);
+    laid.push({ el: div().id("spaces-end").h(H_END).flex_none(), h: H_END });
+    // Rows that moved in their card slide there: their pieces stay empty meanwhile.
+    const dragging = this.dnd != null && this.dnd.phase !== "press";
+    const moving = this.moves(laid, Date.now(), !dragging && !collapsed);
+    const items = laid.map((it) => (it.build ? { ...it, el: it.build(moving.has(it.key ?? it.owner)) } : it));
     // agent.next / agent.prev go down the list as it reads; agents not listed yet last.
     const inOrder = new Set(this.order.map((a) => a.address));
     setAgentOrder([...this.order, ...R.list.filter((a) => !inOrder.has(a.address))].map((a) => a.address));
@@ -1043,7 +1153,6 @@ export class Spaces {
     const followKey = `${active ?? ""}|${current ?? ""}`;
     let followAt = null;
     // Not under a dragged card: once it's down.
-    const dragging = this.dnd != null && this.dnd.phase !== "press";
     if (this.viewH && followKey !== this.followKey && !dragging) {
       let at = current ? items.findIndex((it) => it.pane === current) : -1;
       if (at < 0) at = items.findIndex((it) => it.id === active);
@@ -1063,8 +1172,8 @@ export class Spaces {
         followAt,
         // A card's pieces meet edge to edge; cards keep their own room between.
         gap: 0,
-        // A space's header drag, followed over the whole list.
-        overlay,
+        // A space's header drag, followed over the whole list; else the rows' ghosts.
+        overlay: overlay ?? (collapsed ? null : this.ghosts(t, laid, moving)),
         onMouseMove: (e, cx) => this.dragMove(e, cx),
         onMouseUp: (cx) => this.dragRelease(cx),
         onLeave: (cx) => this.dragLeave(cx),
