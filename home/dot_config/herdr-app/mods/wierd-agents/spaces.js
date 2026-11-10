@@ -1135,6 +1135,16 @@ export class Spaces {
     }
     const counts = countBySpace();
     const laid = this.grouped(t, collapsed, counts, R);
+    // After the last machine: add another (an ssh host), drawn like a machine's header.
+    laid.push({
+      h: H_MACHINE,
+      el: h_flex().id("machine-add").h(H_MACHINE).flex_none().px(collapsed ? 2 : 8).gap(7).items_center()
+        .when(collapsed, el => el.justify_center().tooltip("Add machine"))
+        .text_size(11).text_color(t.dim).cursor_pointer().hover(s => s.bg(t.hover).text_color(t.foreground))
+        .on_click(() => run("mod.open", { name: "machine-add" }))
+        .child(svg("mods/workspace-chrome/plus.svg").size(13).flex_none())
+        .when(!collapsed, el => el.child(div().flex_1().truncate().child("Add machine"))),
+    });
     laid.push({ el: div().id("spaces-end").h(H_END).flex_none(), h: H_END });
     // Rows that moved in their card slide there: their pieces stay empty meanwhile.
     const dragging = this.dnd != null && this.dnd.phase !== "press";
