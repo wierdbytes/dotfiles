@@ -29,7 +29,7 @@
     "npm:@wierdbytes/pi-ask",
     "npm:@wierdbytes/pi-autoname",
     "npm:@wierdbytes/pi-herdr",
-    "npm:@wierdbytes/pi-dream"
+    "npm:@wierdbytes/pi-memory"
   ],
   "theme": "tokyo-night",
   "showHardwareCursor": true,
