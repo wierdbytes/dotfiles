@@ -92,9 +92,9 @@ const SHOWN = [
 const urgent = (c) => SHOWN.find((s) => c?.[s.id] > 0)?.id ?? null;
 
 // Each space's agents by status: every agent with a pane where its pane is, and
-// each live sub-agent without one (they read as in the Agents tab's tree: an error
-// is blocked, done is idle) where its nearest ancestor with a pane is. A sub-agent
-// someone kept (it has a pane now) is an agent of its own space.
+// each live sub-agent (they read as in the list's tree: an error is blocked, done
+// is idle) where its topmost ancestor with a pane is: the agent it shows under.
+// A sub-agent someone kept (it has a pane now) still counts there, as it shows.
 function countBySpace() {
   const list = agents();
   const listed = new Map(list.map((a) => [a.address, a.status]));
@@ -106,18 +106,24 @@ function countBySpace() {
     const c = (out[space] ??= { blocked: 0, done: 0, working: 0 });
     if (status in c) c[status] += 1;
   };
-  for (const a of list) add(a.space, a.status);
-  for (const k of all) {
-    if (k.state !== "live" || listed.has(k.address) || !isAgent(k)) continue;
-    // Up through live terminals, as the Agents tab's tree goes down them.
-    let up = k.parent;
+  // Up through live terminals, as the list's tree goes down them: the last agent
+  // with a pane on the way.
+  const root = (k) => {
+    let up = k.parent, top = null;
     const seen = new Set();
-    while (up && !spaceOf.has(up) && !seen.has(up)) {
+    while (up && !seen.has(up)) {
       seen.add(up);
+      if (spaceOf.has(up)) top = up;
       const p = byAddr.get(up);
       up = p?.state === "live" ? p.parent : null;
     }
-    if (up && spaceOf.has(up)) add(spaceOf.get(up), kidStatus(k, listed));
+    return top;
+  };
+  for (const k of all) {
+    if (k.state !== "live" || !(listed.has(k.address) || isAgent(k))) continue;
+    const top = root(k);
+    if (top) add(spaceOf.get(top), kidStatus(k, listed));
+    else if (listed.has(k.address)) add(spaceOf.get(k.address), listed.get(k.address));
   }
   return out;
 }
@@ -460,9 +466,18 @@ export class Spaces {
     this.paneOrder = paneOrder;
     const listed = (r) => {
       const groups = R.groups.get(r.w.id) ?? [];
-      order.push(...groups.flatMap((g) => g.agents));
       for (const g of groups) {
-        for (const a of g.agents) if (a.pane) paneOrder.push(a.pane);
+        for (const a of g.agents) {
+          order.push(a);
+          if (a.pane) paneOrder.push(a.pane);
+          // Its children someone kept, where they show: under it.
+          for (const s of R.trees.get(a.address) ?? []) {
+            const kid = R.agentBy.get(s.t.address);
+            if (kid) order.push(kid);
+            const pane = R.paneOf.get(s.t.address);
+            if (pane) paneOrder.push(pane);
+          }
+        }
         for (const p of g.others) if (p.pane) paneOrder.push(p.pane);
       }
     };
@@ -481,12 +496,16 @@ export class Spaces {
       const piece = (kind, h, child = null, rail = null) => this.piece(t, kind, h, child, rail, lifted);
       // A row's piece (and the joining line's stretch over the room above it,
       // `owner`: the row's key), built once the list knows which rows slide (render).
-      const lazy = (kind, h, child, rail, extra) => ({
+      // `auto`: the row sizes itself (an agent's sub-agents fold in and out with
+      // a native height transition), so its piece follows it frame by frame;
+      // `flipH`: its height without them, which is what says it moved (moves()).
+      const lazy = (kind, h, child, rail, { auto = false, flipH = null, ...extra } = {}) => ({
         ...extra,
         h: pieceHeight(kind, h),
+        flipH: flipH != null ? pieceHeight(kind, flipH) : null,
         row: child,
         rowH: h,
-        build: (away) => this.piece(t, kind, h, away ? null : child, away ? null : rail, lifted).el,
+        build: (away) => this.piece(t, kind, h, away ? null : child, away ? null : rail, lifted, auto && !away).el,
       });
       if (!open) return [{ ...piece("only", rowHeight(r), head), id: r.w.id }, after];
       // Every row's highlight stays CARD_PAD from the header, from the next row and
@@ -508,7 +527,7 @@ export class Spaces {
             sealed ||= last;
             return [
               ...(k > 0 ? [joined ? lazy("side", CARD_PAD, null, "mid", { owner: it.key }) : piece("side", CARD_PAD)] : []),
-              lazy(last ? "last" : "side", it.h, it.el, rail(k), { key: it.key, pane: it.pane, rail: rail(k), railUp: joined && k > 0 }),
+              lazy(last ? "last" : "side", it.h, it.el, rail(k), { key: it.key, pane: it.pane, rail: rail(k), railUp: joined && k > 0, auto: it.auto, flipH: it.flipH }),
             ];
           }),
         ];
@@ -621,15 +640,16 @@ export class Spaces {
   // card without rows: a piece shorter than CARD_R can't round its corners fully).
   // `h`: the content's height; the piece adds its borders. `rail`: where the row
   // is in a split tab's run ("start", "mid", "end"), for the line that joins them.
-  // `lifted`: the card is being dragged, its edge in the accent.
+  // `lifted`: the card is being dragged, its edge in the accent. `auto`: as tall
+  // as its row is at the moment (a row whose height animates), not `h`.
   // -> { el, h }
-  piece(t, kind, h, child = null, rail = null, lifted = false) {
+  piece(t, kind, h, child = null, rail = null, lifted = false, auto = false) {
     const top = kind === "head" || kind === "only";
     const low = kind === "end" || kind === "only" || kind === "last";
     const pad = kind === "last" ? CARD_PAD : 0;
     const total = pieceHeight(kind, h);
     const el = div()
-      .h(total)
+      .when(!auto, (el) => el.h(total))
       .flex_none()
       .bg(lifted ? t.raised : t.surface)
       .border_color(lifted ? alpha(t.accent, "99") : t.border)
@@ -912,16 +932,21 @@ export class Spaces {
 
   // Where every row is in its card now, against the last render: those that moved
   // in the same card (not the card itself moving) slide from where they were.
+  // Whether a row moved goes by the rows' heights without their sub-agents
+  // (`flipH`): those fold in and out by themselves, pushing the rows under them
+  // along, so a row isn't moved by its neighbour folding. How far it slides goes
+  // by the real ones.
   // `still`: false while a space is dragged (its card's rows stay in it).
   // -> the keys of the rows sliding now.
   moves(items, now, still) {
     const pos = new Map();
     const cardTop = new Map();
-    let y = 0;
+    let y = 0, ry = 0;
     for (const it of items) {
-      if (it.unit != null && !cardTop.has(it.unit)) cardTop.set(it.unit, y);
-      if (it.key) pos.set(it.key, { y, rel: y - cardTop.get(it.unit), unit: it.unit });
+      if (it.unit != null && !cardTop.has(it.unit)) cardTop.set(it.unit, ry);
+      if (it.key) pos.set(it.key, { y, rel: ry - cardTop.get(it.unit), unit: it.unit });
       y += it.h;
+      ry += it.flipH ?? it.h;
     }
     const prev = this.flipPrev;
     this.flipPrev = pos;
@@ -1114,6 +1139,8 @@ export class Spaces {
     if (changed) setShared("space.colors", kept);
 
     const R = this.agents.prepare(t);
+    // A sub-agent just kept from its peek: its tab next to its parent's.
+    this.agents.placeKept(R);
 
     // A space's sessions instead of the list (not on the rail; gone with its space).
     const sessionsOf = this.agents.sessionsFor ? sp.find((s) => s.id === this.agents.sessionsFor) : null;

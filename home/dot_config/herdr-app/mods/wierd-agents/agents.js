@@ -13,6 +13,16 @@
 // size reads green while the cache is warm, yellow in its last 30s. Parents take
 // their most urgent sub-agent's place; a viewed done agent stays with Done until left.
 //
+// Its sub-agents (hc run) show under it, unfolded unless its bot chip folds them,
+// joined to it by a tree line. Each reads in two lines like its parent: its status
+// and what it's on (its own word, else a telling title, else its name); then its
+// model and @effort on the left, its context size and how long it has been in its
+// state on the right, in the parent's columns. Plain terminals it started get one
+// line: their program's icon and name. A click peeks at one over the window (the
+// session peek's bar: Keep makes it a tab right after its parent's, in the parent's
+// space); one kept that way is still its parent's child: it stays under it in the
+// list (and counts in its space), not a row of its own tab, and a click goes to it.
+//
 // Under a space, each tab is a group: its agents (most urgent first), then its
 // other panes, one line each: the process in front by its own name (zsh, lazygit,
 // ping), and on the right the folder it works in. Tabs with agents come first,
@@ -24,7 +34,7 @@
 
 import { div, image, svg } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
-import { agents, terminals, focused, spaces, panes, run, theme, openOverlay, closeOverlay, props, settings, exec, hc, home, appHome, notify } from "herdr";
+import { agents, terminals, focused, spaces, panes, run, theme, openOverlay, closeOverlay, props, settings, exec, hc, home, appHome, notify, shared, setShared } from "herdr";
 import { agentMeta, shortModel, providerOf, tokens, duration, nextTick, effortColor, ctxColor, maxGradient, cacheLeft, cacheState, cacheColor, CACHE_WARN_MS } from "./meta.js";
 import { narrow, place, RANK, kidStatus, isAgent, tree, statusMark, statusTint, focusRing } from "./kit.js";
 
@@ -50,6 +60,16 @@ const TICK_LANE_INSET = 32 + TICK_W;
 // Row heights in the list (px at zoom 1): the list scrolls itself (scroll.js),
 // so it places rows by these.
 const H_ROW = 52, H_SUB = 26, H_PANE = 28;
+// A sub-agent's row: two lines (20 + 16) and a little room above and below. Its
+// first line's middle is a plain sub-row's (13), so the tree's elbows line up.
+const H_KID = 42, KID_PAD = 3, KID_MID = 13;
+// A tree line's column: its width, the room after it, its stroke and how far it
+// reaches up into the room between rows (a card's CARD_PAD).
+const TREE_W = 9, TREE_GAP = 4, TREE_STROKE = 1.5, TREE_UP = 4;
+// The room between an agent's row and each of its children's (spaces.js's
+// CARD_PAD, the room between rows in a card), and how long they take to fold in
+// or out.
+const ROW_GAP = 4, FOLD_MS = 200;
 // Sessions at first, and how many more each step brings.
 const SESSION_PAGE = 10;
 // How often the shown sessions are read again (new sessions, names).
@@ -108,6 +128,39 @@ function shortPath(path, max) {
   return head.length + tail.length <= max ? head + tail : `…${tail.slice(-(max - 1))}`;
 }
 
+// What a sub-agent is on, as an agent's row says it: its own word (pi's session
+// name), else a telling title, else its name (hc run --name), else its program's.
+function kidLabel(k) {
+  const msg = clean(k.report?.msg);
+  if (msg) return msg;
+  const live = clean(k.title);
+  if (telling(live, k.program)) return live;
+  return k.name || k.template || k.program?.name || k.address;
+}
+
+// Where a child of an agent goes when kept: a tab next to its nearest ancestor
+// with a pane (through live terminals). -> { addr, space, tab, pane, label } or null.
+// What's been kept and waits for its tab to show up, to be moved next to its
+// ancestor's (placeKept): terminal -> { after: that tab, root: that ancestor, at }.
+const KEEP = "wierd.agents.keepBeside";
+const KEEP_WAIT_MS = 20000;
+function homeOf(addr, all = terminals()) {
+  const byAddr = new Map(all.map((k) => [k.address, k]));
+  const ps = panes();
+  const spaceOf = new Map(spaces().flatMap((s) => (s.tabs ?? []).map((tab) => [tab.id, s.id])));
+  let up = byAddr.get(addr)?.parent;
+  const seen = new Set();
+  while (up && !seen.has(up)) {
+    seen.add(up);
+    const p = byAddr.get(up);
+    if (p?.state !== "live") return null;
+    const pane = ps.find((x) => x.terminal === up);
+    if (pane && spaceOf.has(pane.tab)) return { addr: up, space: spaceOf.get(pane.tab), tab: pane.tab, pane: pane.pane, label: kidLabel(p) };
+    up = p.parent;
+  }
+  return null;
+}
+
 // The agent's icon from the app's program table: a one-color glyph or a picture.
 function icon(p, size, color) {
   if (!p?.icon) return null;
@@ -133,8 +186,17 @@ export class Agents {
       cx.timer.after(250, () => this.keys.focus());
       return;
     }
-    // Agents whose sub-agents are listed.
-    this.open = new Set();
+    // Agents whose sub-agents are hidden (their bot chip folded them); the rest
+    // show theirs.
+    this.folded = new Set();
+    // Agents folded a moment ago: until when their sub-agents' rows stay, while
+    // the box closes over them.
+    this.foldUntil = {};
+    // Sub-agents' state changes as the core stamped them: address -> { s, at },
+    // and the (address, state)s already asked about.
+    this.kidStamps = {};
+    this.stampAsked = new Set();
+    cx.timer.every(500, (cx) => this.askStamps(cx));
     // Each agent's last state and when it changed (ms), kept across restarts.
     this.changed = JSON.parse(localStorage.getItem("changed") ?? "{}");
     this.pendingPins = JSON.parse(localStorage.getItem("pins") ?? "[]");
@@ -224,6 +286,37 @@ export class Agents {
     return app && (!seen || app < seen) ? app : seen;
   }
 
+  // A sub-agent's: the core stamps each status change (`hc get`'s status_ms;
+  // terminals() leaves it out, see askStamps); this list's own stamp is when it
+  // saw it. The earlier of the two, as since() does. `s`: its status as it reads.
+  kidSince(k, s) {
+    const seen = this.changed[k.address]?.at || 0;
+    const core = this.kidStamps[k.address];
+    const app = core?.s === s ? core.at : 0;
+    return app && (!seen || app < seen) ? app : seen;
+  }
+
+  // Asks the core when each listed sub-agent got into its state, once per state
+  // (`this.kidWant`: prepare()'s [{ address, status }]); a redraw when one is in.
+  askStamps(cx) {
+    for (const { address, status } of this.kidWant ?? []) {
+      const key = `${address}\n${status}`;
+      if (this.kidStamps[address]?.s === status || this.stampAsked.has(key)) continue;
+      this.stampAsked.add(key);
+      cx.spawn(async (cx) => {
+        try {
+          const r = await hc(["get", address, "--json"]);
+          const k = JSON.parse(r.stdout);
+          const s = kidStatus({ address, status: k.status?.state ?? k.status }, new Map());
+          if (k.status_ms > 0 && s) {
+            this.kidStamps[address] = { s, at: k.status_ms };
+            cx.notify();
+          }
+        } catch {}
+      });
+    }
+  }
+
   // Looking at a done agent makes it idle; it stays with Done until you leave
   // it rather than drop away under you. Any other change moves it at once.
   hold(list) {
@@ -241,21 +334,41 @@ export class Agents {
   // A session opened from the sessions list runs in a terminal of its own, shown
   // over the window with this bar on top: Keep makes it a tab of its space (and
   // an agent in the list); closing the panel any other way ends that pi.
-  // Props: { peekBar, terminal, space, title, overlay }.
+  // A sub-agent peeked at from its row (`sub`) gets the same bar: Keep makes it a
+  // tab of its parent's space (the nearest ancestor with a pane), right after the
+  // parent's tab (and its other kept children's there); the list still shows it
+  // under its parent. Closing leaves it running.
+  // Props: { peekBar, sub?, terminal, space, title, overlay }.
   peekBar(t) {
-    const { terminal, space, title, overlay } = props();
-    const term = terminals().find((x) => x.address === terminal);
+    const { terminal, space, overlay, sub } = props();
+    const all = terminals();
+    const term = all.find((x) => x.address === terminal);
     const status = kidStatus(term ?? {}, new Map(agents().map((a) => [a.address, a.status])));
     const meta = agentMeta(term);
     const mark = providerOf(meta);
     const pic = providerIcon(mark, 13, t.muted) ?? icon(term?.program, 14, t.muted);
     const name = spaces().find((s) => s.id === space)?.name;
+    const home = sub ? homeOf(terminal, all) : null;
+    const parent = sub && term?.parent ? all.find((x) => x.address === term.parent) : null;
+    const title = sub ? (term ? kidLabel(term) : terminal) : props().title;
     const keep = () => {
       this.kept = true;
-      if (space) run("space.select", { id: space });
-      run("terminal.keep", { terminal });
+      if (home) {
+        // A tab of the parent's space; the sidebar moves it next to the parent's
+        // once it's there (placeKept): the tab's id isn't known before.
+        setShared(KEEP, { ...(shared(KEEP) ?? {}), [terminal]: { after: home.tab, root: home.addr, at: Date.now() } });
+        run("space.select", { id: home.space });
+        run("tab.select", { id: home.tab });
+        run("terminal.keep", { terminal });
+      } else {
+        if (space) run("space.select", { id: space });
+        run("terminal.keep", { terminal });
+      }
       closeOverlay(overlay);
     };
+    const keepTip = sub
+      ? (home ? `Keep it in a tab next to ${home.label}` : "Keep it as a tab")
+      : `Keep it as a tab${name ? ` in ${name}` : ""}`;
     const kbd = (text, color) => div().text_size(10).opacity(0.75).text_color(color).child(text);
     const button = (id, label, tip, onClick, strong = false) => h_flex()
       .id(id)
@@ -294,9 +407,10 @@ export class Agents {
       .child(h_flex().w(18).flex_none().items_center().justify_center().when(Boolean(status), (el) => el.child(this.status(t, { status }, true))))
       .when(Boolean(pic), (el) => el.child(pic))
       .child(div().min_w(0).truncate().font_semibold().text_color(t.foreground).child(title || terminal || ""))
+      .when(Boolean(parent), (el) => el.child(div().flex_none().max_w(260).truncate().text_color(t.dim).child(`from ${kidLabel(parent)}`)))
       .child(div().flex_1())
-      .child(button("peek-keep", [div().child("Keep"), kbd("↵", t.accent_foreground)], `Keep it as a tab${name ? ` in ${name}` : ""}`, keep, true))
-      .child(button("peek-close", [div().child("✕"), kbd("esc", t.dim)], "Close and end this pi", () => closeOverlay(overlay)));
+      .child(button("peek-keep", [div().child("Keep"), kbd("↵", t.accent_foreground)], keepTip, keep, true))
+      .child(button("peek-close", [div().child("✕"), kbd("esc", t.dim)], sub ? "Close (it keeps running)" : "Close and end this pi", () => closeOverlay(overlay)));
   }
 
   // This class draws on its own only as the peek bar.
@@ -305,9 +419,10 @@ export class Agents {
   }
 
   // The peek panel going away without Keep ends its pi: the session is saved.
+  // Not a sub-agent's: it works for its parent.
   async close() {
     const p = props();
-    if (p?.peekBar && !this.kept && p.terminal) await hc(["kill", p.terminal]);
+    if (p?.peekBar && !p.sub && !this.kept && p.terminal) await hc(["kill", p.terminal]);
   }
 
   openSessionPeek(terminal, space, title) {
@@ -344,34 +459,196 @@ export class Agents {
     });
   }
 
+  // A child of an agent, from its row: its pane when it has one (kept), else a
+  // look at it over the window, with Keep and Close (peekBar's `sub`).
   peek(addr) {
-    run("terminal.peek", { terminal: addr });
+    const pane = panes().find((p) => p.terminal === addr)?.pane;
+    if (pane) {
+      run("pane.focus", { pane });
+      return;
+    }
+    openOverlay({
+      kind: "dialog",
+      width: 0.82,
+      height: 0.82,
+      layout: {
+        type: "column",
+        children: [
+          { id: "peek-bar", type: "block", size: { px: 38 }, content: { mod: "wierd-agents", props: { peekBar: true, sub: true, terminal: addr } } },
+          { id: "peek-term", type: "block", content: { terminal: addr } },
+        ],
+      },
+    });
   }
 
-  subRow(t, s, shown, compact) {
+  // The tree lines in front of a child's row, one column per level, as tall as
+  // the row: ├ and └ an elbow into its first line's middle (`mid`); ├ and │ go on
+  // down to the row's end, and every line reaches up into the room above, so
+  // siblings join into one line.
+  treeLines(t, lines, h, mid) {
+    // As wide as the column: a box only as wide as its border doesn't draw it.
+    const stroke = (el) => el.absolute().left(0).w(TREE_W).border_color(t.input).border_l(TREE_STROKE);
+    return lines.map((l) => div()
+      .relative()
+      .w(TREE_W)
+      .h(h)
+      .mr(TREE_GAP)
+      .flex_none()
+      .when(l === "└" || l === "├", (el) => el.child(stroke(div())
+        .top(-TREE_UP)
+        .h(mid + TREE_UP)
+        .border_b(TREE_STROKE)
+        .rounded_bl(6)))
+      .when(l === "├" || l === "│", (el) => el.child(stroke(div())
+        .top(l === "│" ? -TREE_UP : mid - 6)
+        .bottom(0))));
+  }
+
+  // Kept children (peekBar's Keep) whose tab has shown up: each moves right after
+  // its ancestor's tab, past that ancestor's other kept children's tabs already
+  // there, once. Called by the sidebar on render (`R`: prepare()'s).
+  placeKept(R) {
+    const want = shared(KEEP);
+    if (!want || !Object.keys(want).length) return;
+    const now = Date.now();
+    const left = { ...want };
+    const ps = panes();
+    for (const [addr, w] of Object.entries(want)) {
+      const pane = ps.find((p) => p.terminal === addr);
+      if (!pane) {
+        // Not there yet; given up on after a while (the keep failed).
+        if (now - (w.at ?? 0) > KEEP_WAIT_MS) delete left[addr];
+        continue;
+      }
+      delete left[addr];
+      const space = spaces().find((s) => (s.tabs ?? []).some((tab) => tab.id === pane.tab));
+      if (!space) continue;
+      const ids = space.tabs.map((tab) => tab.id);
+      const rest = ids.filter((id) => id !== pane.tab);
+      let at = rest.indexOf(w.after);
+      // In another space, or the parent's tab is gone: it stays where it is.
+      if (at < 0) continue;
+      const kin = new Set((R.trees.get(w.root) ?? []).map((s) => s.t.address));
+      const kinTab = (id) => {
+        const its = ps.filter((p) => p.tab === id);
+        return its.length > 0 && its.every((p) => p.terminal && kin.has(p.terminal));
+      };
+      while (at + 1 < rest.length && kinTab(rest[at + 1])) at++;
+      if (ids.indexOf(pane.tab) !== at + 1) run("tab.move", { id: pane.tab, index: at + 2 });
+    }
+    // Only when something went: a write redraws every copy, this one too.
+    if (Object.keys(left).length !== Object.keys(want).length) setShared(KEEP, left);
+  }
+
+  // A child's row is lit while it's shown: peeked at, or its pane (kept) focused.
+  kidOn(R, k) {
+    const pane = R.paneOf.get(k.address);
+    return k.address === R.shown || (pane != null && pane === R.focusedPane);
+  }
+
+  // A child of an agent: a sub-agent in two lines, a plain terminal in one.
+  subRow(R, s) {
+    return isAgent(s.t) ? this.kidRow(R, s) : this.termRow(R, s);
+  }
+
+  // A terminal an agent started: its program's icon and name.
+  termRow(R, s) {
+    const { t } = R;
+    const k = s.t;
+    const pic = icon(k.program, 14, t.foreground) ?? svg("mods/workspace-chrome/terminal.svg").size(14).flex_none().text_color(t.muted);
+    const on = this.kidOn(R, k);
+    return {
+      h: H_SUB,
+      el: h_flex()
+        .id(`sub-${k.address}`)
+        .pl(17)
+        .pr(8)
+        .rounded(8)
+        .h(H_SUB)
+        .flex_none()
+        .items_center()
+        .text_size(12.5)
+        .when(on, (el) => el.bg(t.raised))
+        .hover((s) => s.bg(t.hover))
+        .on_click(() => this.peek(k.address))
+        .children(this.treeLines(t, s.lines, H_SUB, H_SUB / 2))
+        .child(h_flex().w(14).mr(8).flex_none().justify_center().child(pic))
+        .child(div().flex_1().truncate().text_color(on ? t.foreground : t.muted).child(k.name || k.template || k.program?.name || k.address)),
+    };
+  }
+
+  // A sub-agent, read like its parent: its status where its program's icon was
+  // and what it's on; under that its model and @effort, and on the right its
+  // context size and how long it has been in its state, in its parent's columns.
+  kidRow(R, s) {
+    const { t, mono } = R;
     const k = s.t;
     const st = kidStatus(k, this.listed);
-    const pic = icon(k.program, 14, t.foreground);
-    const on = k.address === shown;
-    return h_flex()
-      .id(`sub-${k.address}`)
-      .pl(17)
-      .pr(8)
-      .rounded(8)
-      .h(26)
-      .flex_none()
-      .gap(0)
-      .items_center()
-      .text_size(12.5)
-      .when(on, (el) => el.bg(t.raised))
-      .hover((s) => s.bg(t.hover))
-      .on_click(() => this.peek(k.address))
-      .children(s.lines.map(l => div().self_start().mt(-4).w(9).h(17).mr(4).flex_none()
-        .when(Boolean(l), el => el.border_l(1.5).border_color(t.input))
-        .when(l === "└" || l === "├", el => el.border_b(1.5).rounded_bl(6))))
-      .when(Boolean(pic), el => el.child(div().mr(8).child(pic)))
-      .child(div().flex_1().truncate().text_color(on ? t.foreground : t.muted).child(k.name || k.template || k.program?.name || k.address))
-      .child(this.status(t, { status: st }, compact));
+    const on = this.kidOn(R, k);
+    const quiet = st === "idle" && !on;
+    const meta = agentMeta(k);
+    const mark = providerOf(meta);
+    const model = meta?.model ? shortModel(meta.model, mark) : k.program?.name ?? "";
+    const ctx = meta?.ctx > 0 ? tokens(meta.ctx) : null;
+    const full = ctx && meta?.ctxMax ? Math.min(1, meta.ctx / meta.ctxMax) : null;
+    const cache = meta ? { until: meta.cacheUntil, ttl: meta.cacheTtl } : null;
+    const when = this.kidSince(k, st);
+    const name = k.name || k.template || k.address;
+    // The status's column and the room after it; the second line keeps it empty,
+    // so the model starts under the title.
+    const lead = (child) => h_flex().w(14).mr(8).flex_none().items_center().justify_center().when(Boolean(child), (el) => el.child(child));
+    return {
+      h: H_KID,
+      el: h_flex()
+        .id(`sub-${k.address}`)
+        .pl(17)
+        .pr(8)
+        .rounded(8)
+        .h(H_KID)
+        .flex_none()
+        .items_start()
+        .when(on, (el) => el.bg(t.raised))
+        .hover((s) => s.bg(t.hover))
+        .on_click(() => this.peek(k.address))
+        .children(this.treeLines(t, s.lines, H_KID, KID_MID))
+        .child(v_flex()
+          .flex_1()
+          .min_w(0)
+          .pt(KID_PAD)
+          .child(h_flex()
+            .h(20)
+            .items_center()
+            .child(lead(this.status(t, { status: st }, true)))
+            .child(div()
+              .id(`sub-title-${k.address}`)
+              .flex_1()
+              .min_w(0)
+              .truncate()
+              .text_size(12.5)
+              .text_color(t.foreground)
+              .tooltip(`${name} · ${k.address}`)
+              .child(R.kidLabel(k))))
+          .child(h_flex()
+            .h(16)
+            .gap(7)
+            .items_center()
+            .child(h_flex().flex_1().min_w(0).items_center()
+              .child(lead(null))
+              .child(h_flex().flex_1().min_w(0).gap(4).items_center().font_family(mono).text_size(10.5)
+                .child(div().min_w(0).truncate().text_color(quiet ? t.dim : t.muted).child(model))
+                .when(Boolean(meta?.effort), (el) => el.child(R.effort(meta.effort)))))
+            .when(Boolean(ctx), (el) => el.child(this.ctxText(t, k.address, ctx, full, meta.ctxMax, mono, R.cacheTint(cache))))
+            .child(h_flex()
+              .w(26)
+              .flex_none()
+              .justify_end()
+              .items_center()
+              .when(Boolean(when), (el) => el.child(div()
+                .font_family(mono)
+                .text_size(10.5)
+                .text_color(t.dim)
+                .child(R.clock(when))))))),
+    };
   }
 
   // compact: a ! for blocked instead of the "Needs you" pill (kit.js's marks).
@@ -379,7 +656,8 @@ export class Agents {
     return statusMark(t, a.status, compact);
   }
 
-  // A count chip (⑂ 3, >_ 1); with `toggle` it opens the tree of children under the row.
+  // A count chip (bot 3, >_ 1); with `toggle` it opens the tree of children under the row.
+  // `glyph`: an icon's path under the home folder.
   badge(t, id, glyph, n, tip, toggle, open) {
     return h_flex()
       .id(id)
@@ -400,7 +678,7 @@ export class Agents {
           cx.stop_propagation();
           toggle(cx);
         }))
-      .child(svg(`mods/workspace-chrome/${glyph}.svg`).size(11).flex_none())
+      .child(svg(glyph).size(11).flex_none())
       // Room for two digits, so 9 -> 10 doesn't push its neighbours.
       .child(div().min_w(14).text_center().child(String(n)));
   }
@@ -496,9 +774,12 @@ export class Agents {
     const byAddr = new Map(all.map((x) => [x.address, x]));
     this.migratePins(all);
     this.rememberCaches(all, now);
-    this.track(list, now);
-    this.hold(list);
     const trees = new Map(list.map((a) => [a.address, tree(all, a.address)]));
+    // Sub-agents are stamped too (their rows' clocks), as they read: done is idle.
+    const kids = [...trees.values()].flat().filter((s) => isAgent(s.t)).map((s) => ({ address: s.t.address, status: kidStatus(s.t, this.listed) }));
+    this.track([...list, ...kids], now);
+    this.kidWant = kids;
+    this.hold(list);
     const tabs = new Map(spaces().flatMap((s) => s.tabs).map((tab) => [tab.id, tab]));
     const perTab = new Map();
     for (const a of list) perTab.set(a.tab, (perTab.get(a.tab) ?? 0) + 1);
@@ -520,17 +801,22 @@ export class Agents {
       agentsOf.get(a.tab).push(a);
     }
     const panesOf = new Map();
-    for (const p of panes()) {
+    const ps = panes();
+    for (const p of ps) {
       if (!panesOf.has(p.tab)) panesOf.set(p.tab, []);
       panesOf.get(p.tab).push(p);
     }
+    // Children of an agent someone kept (they have a pane now) are still its
+    // children: they show under it, not as rows of their own tab.
+    const nested = new Set([...trees.values()].flat().map((s) => s.t.address));
     const groups = new Map();
     for (const s of spaces()) {
       const busy = [], quiet = [];
       for (const tab of s.tabs ?? []) {
-        const mine = agentsOf.get(tab.id) ?? [];
-        const theirs = new Set(mine.map((a) => a.pane));
-        const others = (panesOf.get(tab.id) ?? []).filter((p) => !theirs.has(p.pane));
+        const here = agentsOf.get(tab.id) ?? [];
+        const mine = here.filter((a) => !nested.has(a.address));
+        const theirs = new Set(here.map((a) => a.pane));
+        const others = (panesOf.get(tab.id) ?? []).filter((p) => !theirs.has(p.pane) && !(p.terminal && nested.has(p.terminal)));
         const g = { tab, agents: mine, others, panes: mine.length + others.length };
         if (g.panes) (mine.length ? busy : quiet).push(g);
       }
@@ -540,7 +826,14 @@ export class Agents {
 
     const mono = settings().font_family ?? "JetBrains Mono";
     const dark = settings().dark !== false;
-    const R = { t, now, list, groups, byAddr, tabs, trees, mono, dark, shown: focused()?.agent, due: null };
+    const f = focused();
+    const R = {
+      t, now, list, groups, byAddr, tabs, trees, mono, dark, due: null,
+      shown: f?.agent, focusedPane: f?.pane ?? null,
+      // Each kept terminal's pane, and the agents by address.
+      paneOf: new Map(ps.filter((p) => p.terminal).map((p) => [p.terminal, p.pane])),
+      agentBy: new Map(list.map((a) => [a.address, a])),
+    };
 
     // The earliest moment a shown time reads differently; the timer redraws then.
     R.wake = (at) => {
@@ -599,6 +892,8 @@ export class Agents {
       if (telling(live, a.program)) return live;
       return a.program?.name || a.tab_name || a.address;
     };
+    // A sub-agent's, the same way.
+    R.kidLabel = kidLabel;
     return R;
   }
 
@@ -665,12 +960,39 @@ export class Agents {
     };
   }
 
-  // An agent's row and, when opened, its sub-agents and terminals: [{ el, h, key, addr?, pane? }].
+  // An agent's row with its sub-agents and terminals under it, in one item:
+  // [{ el, h, key, addr, pane, auto, flipH }]. They sit in a box that folds: its
+  // height slides between none and theirs natively (FOLD_MS), clipping them, and
+  // the card and everything under it follow it frame by frame (`auto`: the
+  // card's piece sizes itself). The box is there with none too, so one coming or
+  // going slides as well. `h` is where it's going; `flipH` the row alone.
   agentItems(R, a) {
     const subs = R.trees.get(a.address) ?? [];
-    const r = { el: this.row(R, a, subs), h: H_ROW, key: `ag-${a.address}`, addr: a.address, pane: a.pane };
-    if (!this.open.has(a.address) || subs.length === 0) return [r];
-    return [r, ...subs.map((s) => ({ el: this.subRow(R.t, s, R.shown, false), h: H_SUB, key: `sub-${a.address}-${s.t.address}` }))];
+    const open = !this.folded.has(a.address);
+    // Each child CARD_PAD under the one above it, as rows in a card are.
+    const full = subs.reduce((sum, s) => sum + ROW_GAP + (isAgent(s.t) ? H_KID : H_SUB), 0);
+    // Folding, they stay in the box until it has closed; folded, they're gone.
+    const shown = subs.length > 0 && (open || Date.now() < (this.foldUntil[a.address] ?? 0));
+    const box = div()
+      .id(`kids-${a.address}`)
+      .flex_none()
+      .h(open ? full : 0)
+      .overflow_hidden()
+      .transition("height", { duration: FOLD_MS, easing: "ease-out" })
+      .when(shown, (el) => el.child(v_flex()
+        .flex_none()
+        .pt(ROW_GAP)
+        .gap(ROW_GAP)
+        .children(subs.map((s) => this.subRow(R, s).el))));
+    return [{
+      el: v_flex().flex_none().child(this.row(R, a, subs)).child(box),
+      h: H_ROW + (open ? full : 0),
+      flipH: H_ROW,
+      auto: true,
+      key: `ag-${a.address}`,
+      addr: a.address,
+      pane: a.pane,
+    }];
   }
 
   row(R, a, subs) {
@@ -704,10 +1026,20 @@ export class Agents {
     const kidAgents = subs.filter((s) => isAgent(s.t)).length;
     const kidTerms = subs.length - kidAgents;
     const inner = meta?.subagents ?? 0;
-    const open = this.open.has(a.address) && subs.length > 0;
+    const open = !this.folded.has(a.address) && subs.length > 0;
     const toggle = subs.length > 0
       ? (cx) => {
-        this.open.has(a.address) ? this.open.delete(a.address) : this.open.add(a.address);
+        const now = Date.now();
+        if (this.folded.has(a.address)) this.folded.delete(a.address);
+        else {
+          this.folded.add(a.address);
+          // Its rows stay while the box closes over them, then go.
+          this.foldUntil[a.address] = now + FOLD_MS + 40;
+          cx.timer.after(FOLD_MS + 60, (cx) => cx.notify());
+        }
+        // Should the list scroll (folding at its end), it slides along.
+        const list = this.owner?.scroll?.list;
+        if (list) list.animateUntil = now + FOLD_MS + 100;
         cx.notify();
       }
       : null;
@@ -769,8 +1101,8 @@ export class Agents {
           .when(Boolean(meta?.effort), (el) => el.child(R.effort(meta.effort))))
         .child(h_flex().flex_none().gap(7).items_center()
           .when(Boolean(machine), (el) => el.child(div().text_size(10).text_color(t.dim).child(machine)))
-          .when(kidAgents + inner > 0, (el) => el.child(this.badge(t, `subs-${a.address}`, "git-branch", kidAgents + inner, subTip, kidAgents > 0 ? toggle : null, open)))
-          .when(kidTerms > 0, (el) => el.child(this.badge(t, `terms-${a.address}`, "terminal", kidTerms, plural(kidTerms, "terminal"), toggle, open)))
+          .when(kidAgents + inner > 0, (el) => el.child(this.badge(t, `subs-${a.address}`, "mods/wierd-agents/bot.svg", kidAgents + inner, subTip, kidAgents > 0 ? toggle : null, open)))
+          .when(kidTerms > 0, (el) => el.child(this.badge(t, `terms-${a.address}`, "mods/workspace-chrome/terminal.svg", kidTerms, plural(kidTerms, "terminal"), toggle, open)))
           // A pi keeps the number's place before its first prompt, so the
           // badges don't jump when it shows up.
           .when(Boolean(ctx), (el) => el.child(this.ctxText(t, a.address, ctx, full, meta.ctxMax, mono, R.cacheTint(cache))))
