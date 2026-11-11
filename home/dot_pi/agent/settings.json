@@ -15,7 +15,6 @@
     "anthropicExtraUsage": false
   },
   "packages": [
-    "npm:@tintinweb/pi-subagents",
     "npm:@wierdbytes/pi-web",
     "npm:@wierdbytes/pi-voice",
     "npm:@wierdbytes/pi-anthropic",
@@ -28,7 +27,8 @@
     "npm:@wierdbytes/pi-ask",
     "npm:@wierdbytes/pi-autoname",
     "npm:@wierdbytes/pi-herdr",
-    "npm:@wierdbytes/pi-memory"
+    "npm:@wierdbytes/pi-memory",
+    "npm:@wierdbytes/pi-agents"
   ],
   "theme": "tokyo-night",
   "showHardwareCursor": true,
