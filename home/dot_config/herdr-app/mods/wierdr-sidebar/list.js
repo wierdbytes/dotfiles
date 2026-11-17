@@ -16,7 +16,7 @@ import { div, Background, PathBuilder } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
 import { spaces, machines, panes, focused, run, exec, hc, theme, settings, shared, setShared, setAgentOrder, watchFolder, window, checking } from "herdr";
 import { M, px, mono, icon, alpha, statusColor } from "./look.js";
-import { snapshot, sum, ageTick, age, kidStatus, wantedStamps, setStamp, statusOf } from "./model.js";
+import { snapshot, sum, ageTick, age, kidStatus, wantedStamps, setStamp, phaseOf } from "./model.js";
 import { rowChrome, agentContent, kidContent, paneContent } from "./rows.js";
 import { openMenu, openKid, focusPane, KEEP } from "./actions.js";
 import { Sessions } from "./sessions.js";
@@ -82,7 +82,7 @@ export class List {
     cx.timer.every(300, (cx) => this.sessions.tick(cx));
     // When each agent got into its status: asked of the core (model.js since).
     this.stampWant = [];
-    this.stampTries = new Map();
+    this.stampAsk = new Map(); // address -> { s: phase, tries, busy }
     cx.timer.every(500, (cx) => this.askStamps(cx));
     // Ages read 12s, 5m, 3h: a redraw only when one would read differently (render sets `due`).
     cx.timer.every(1000, (cx) => {
@@ -104,30 +104,33 @@ export class List {
     });
   }
 
-  // `hc get` for each (terminal, status) render found without the core's stamp (model.js
-  // wantedStamps); a redraw when one is in. If the core already says another status
-  // (terminals() is behind), asked again, a few times at most.
+  // `hc get` for each terminal render found without the core's stamp for its phase
+  // (model.js wantedStamps); a redraw when one is in. Each new phase is asked anew; if
+  // the core already says another one (terminals() is behind), again, 3 tries at most.
   askStamps(cx) {
-    for (const [address, s] of this.stampWant) {
-      const key = `${address}\n${s}`;
-      const tries = this.stampTries.get(key) ?? 0;
-      if (tries < 0 || tries >= 3) continue;
-      this.stampTries.set(key, -1 - tries);
+    const want = new Map(this.stampWant);
+    for (const k of this.stampAsk.keys()) if (!want.has(k)) this.stampAsk.delete(k);
+    for (const [address, s] of want) {
+      let ask = this.stampAsk.get(address);
+      if (!ask || ask.s !== s) this.stampAsk.set(address, (ask = { s, tries: 0, busy: false }));
+      if (ask.busy || ask.tries >= 3) continue;
+      ask.busy = true;
+      ask.tries++;
       cx.spawn(async (cx) => {
         let got = null;
         try {
           const r = await hc(["get", address, "--json"]);
           const k = JSON.parse(r.stdout);
-          got = statusOf(k);
+          got = phaseOf(k);
           if (got && k.status_ms > 0) {
             setStamp(address, got, k.status_ms);
             cx.notify();
           }
         } catch {}
-        this.stampTries.set(key, got === s ? 3 : tries + 1);
+        ask.busy = false;
+        if (got === s) ask.tries = 3;
       });
     }
-    if (this.stampTries.size > 500) this.stampTries.clear();
   }
 
   checkGit(cx) {

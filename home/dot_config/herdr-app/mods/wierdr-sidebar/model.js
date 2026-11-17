@@ -29,13 +29,19 @@ export const isAgent = (k) => k.status != null || k.report != null;
 // When the terminal got into its status, ms. terminals()' status_ms is the core's stamp
 // as of when Herdr first got the terminal (none for ones started later) and never moves
 // on a status change; `hc get` has the real one. The list (list.js askStamps) asks it once
-// per (terminal, status) and keeps it here, for every part of this mod; until it's in,
-// the moment this mod saw the change, else terminals()' stamp.
-const stamps = new Map(); // address -> { s, at }: the core's
-const seen = new Map(); // address -> { s, at }: as seen here (at null: already so when first seen)
-export const statusOf = (term) => (typeof term?.status === "string" ? term.status : term?.status?.state) ?? null;
-export function since(term) {
+// per phase and keeps it here, for every part of this mod; until it's in, the moment
+// this mod saw the change, else terminals()' stamp.
+// A phase: the status and the agent's turn (each prompt is a new one), so working again
+// on the next prompt is a new phase even when the done in between went unseen.
+const stamps = new Map(); // address -> { s: phase, at }: the core's
+const seen = new Map(); // address -> { s: phase, at }: as seen here (at null: already so when first seen)
+const statusOf = (term) => (typeof term?.status === "string" ? term.status : term?.status?.state) ?? null;
+export const phaseOf = (term) => {
   const s = statusOf(term);
+  return s == null ? null : `${s}#${term.turn ?? ""}`;
+};
+export function since(term) {
+  const s = phaseOf(term);
   if (!term || s == null) return term?.status_ms ?? null;
   const core = stamps.get(term.address);
   if (core?.s === s) return core.at;
@@ -46,12 +52,12 @@ export function since(term) {
 export function setStamp(address, s, at) {
   stamps.set(address, { s, at });
 }
-// The live terminals with a status whose core stamp isn't in: [[address, status]].
+// The live terminals with a status whose core stamp isn't in: [[address, phase]].
 // Forgets the ones gone.
 export function wantedStamps(all) {
   const want = [], live = new Set();
   for (const t of all) {
-    const s = statusOf(t);
+    const s = phaseOf(t);
     if (t.state !== "live" || s == null) continue;
     live.add(t.address);
     if (stamps.get(t.address)?.s !== s) want.push([t.address, s]);
