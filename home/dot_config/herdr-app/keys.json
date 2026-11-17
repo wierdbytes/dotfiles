@@ -74,5 +74,10 @@
     "cmd-left": "send:\u0001",
     "cmd-right": "send:\u0005",
     "cmd-backspace": "send:\u0015"
+  },
+  "layout:wierdr": {
+    "cmd-]": "wierdr-sidebar.next",
+    "cmd-[": "wierdr-sidebar.prev",
+    "cmd-shift-m": "wierd-tabs.memory"
   }
 }
