@@ -26,8 +26,39 @@ export const kidStatus = (k, listed) => {
 // A child that reports a status is a sub-agent; one that doesn't is a plain terminal.
 export const isAgent = (k) => k.status != null || k.report != null;
 
-// When the terminal got into its status (the core's stamp), ms.
-export const since = (term) => term?.status_ms ?? null;
+// When the terminal got into its status, ms. terminals()' status_ms is the core's stamp
+// as of when Herdr first got the terminal (none for ones started later) and never moves
+// on a status change; `hc get` has the real one. The list (list.js askStamps) asks it once
+// per (terminal, status) and keeps it here, for every part of this mod; until it's in,
+// the moment this mod saw the change, else terminals()' stamp.
+const stamps = new Map(); // address -> { s, at }: the core's
+const seen = new Map(); // address -> { s, at }: as seen here (at null: already so when first seen)
+export const statusOf = (term) => (typeof term?.status === "string" ? term.status : term?.status?.state) ?? null;
+export function since(term) {
+  const s = statusOf(term);
+  if (!term || s == null) return term?.status_ms ?? null;
+  const core = stamps.get(term.address);
+  if (core?.s === s) return core.at;
+  const was = seen.get(term.address);
+  if (!was || was.s !== s) seen.set(term.address, { s, at: was ? Date.now() : null });
+  return seen.get(term.address).at ?? term.status_ms ?? null;
+}
+export function setStamp(address, s, at) {
+  stamps.set(address, { s, at });
+}
+// The live terminals with a status whose core stamp isn't in: [[address, status]].
+// Forgets the ones gone.
+export function wantedStamps(all) {
+  const want = [], live = new Set();
+  for (const t of all) {
+    const s = statusOf(t);
+    if (t.state !== "live" || s == null) continue;
+    live.add(t.address);
+    if (stamps.get(t.address)?.s !== s) want.push([t.address, s]);
+  }
+  for (const m of [stamps, seen]) for (const k of m.keys()) if (!live.has(k)) m.delete(k);
+  return want;
+}
 
 // The pin's time: Wierdr writes `herdr.pinned=<unix seconds>`; the desktop's own pin is "1".
 export function pinnedAt(term) {

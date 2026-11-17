@@ -16,7 +16,7 @@ import { div, Background, PathBuilder } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
 import { spaces, machines, panes, focused, run, exec, hc, theme, settings, shared, setShared, setAgentOrder, watchFolder, window, checking } from "herdr";
 import { M, px, mono, icon, alpha, statusColor } from "./look.js";
-import { snapshot, sum, ageTick, age, kidStatus } from "./model.js";
+import { snapshot, sum, ageTick, age, kidStatus, wantedStamps, setStamp, statusOf } from "./model.js";
 import { rowChrome, agentContent, kidContent, paneContent } from "./rows.js";
 import { openMenu, openKid, focusPane, KEEP } from "./actions.js";
 import { Sessions } from "./sessions.js";
@@ -80,6 +80,10 @@ export class List {
     cx.timer.every(15000, (cx) => this.refreshMachines(cx));
     cx.timer.every(250, (cx) => this.checkGit(cx));
     cx.timer.every(300, (cx) => this.sessions.tick(cx));
+    // When each agent got into its status: asked of the core (model.js since).
+    this.stampWant = [];
+    this.stampTries = new Map();
+    cx.timer.every(500, (cx) => this.askStamps(cx));
     // Ages read 12s, 5m, 3h: a redraw only when one would read differently (render sets `due`).
     cx.timer.every(1000, (cx) => {
       if (this.due == null || Date.now() < this.due) return;
@@ -98,6 +102,32 @@ export class List {
       } catch {}
       cx.notify();
     });
+  }
+
+  // `hc get` for each (terminal, status) render found without the core's stamp (model.js
+  // wantedStamps); a redraw when one is in. If the core already says another status
+  // (terminals() is behind), asked again, a few times at most.
+  askStamps(cx) {
+    for (const [address, s] of this.stampWant) {
+      const key = `${address}\n${s}`;
+      const tries = this.stampTries.get(key) ?? 0;
+      if (tries < 0 || tries >= 3) continue;
+      this.stampTries.set(key, -1 - tries);
+      cx.spawn(async (cx) => {
+        let got = null;
+        try {
+          const r = await hc(["get", address, "--json"]);
+          const k = JSON.parse(r.stdout);
+          got = statusOf(k);
+          if (got && k.status_ms > 0) {
+            setStamp(address, got, k.status_ms);
+            cx.notify();
+          }
+        } catch {}
+        this.stampTries.set(key, got === s ? 3 : tries + 1);
+      });
+    }
+    if (this.stampTries.size > 500) this.stampTries.clear();
   }
 
   checkGit(cx) {
@@ -668,6 +698,7 @@ export class List {
   context(t) {
     const now = Date.now();
     const snap = snapshot(now);
+    this.stampWant = wantedStamps(snap.byAddr.values());
     const f = focused();
     const R = { ...snap, t, dark: settings().dark !== false, focusedPane: f?.pane ?? null, viewW: this.viewW, due: null };
     R.age = (ms) => {
