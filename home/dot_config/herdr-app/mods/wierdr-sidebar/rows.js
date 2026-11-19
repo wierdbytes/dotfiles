@@ -8,7 +8,7 @@
 //   its age; under that its context's ring (first, as an agent's), model and @effort. A plain terminal an agent
 //   started: its program's icon and name;
 // - another pane: its program's icon, the process in front and under it its folder.
-// The pinned rows sit on a gray ground; the focused pane's row is lit with an accent ring.
+// The pinned rows sit on a gray ground; the focused pane's row gets an accent ring.
 
 import { div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
@@ -20,11 +20,11 @@ import { agentTitle, kidTitle, kidStatus, isAgent, age, procName, paneWhere, sho
 const TREE = { w: px(9), gap: px(4), stroke: 1.5, r: px(6) };
 
 // Wraps a row's content in the chrome its place gives it: its ground (pinned: gray), the
-// focused one's light and accent ring, the hover, and the separator under it.
+// focused one's accent ring (no fill), the hover, and the separator under it.
 // `sep`: null, "full", or the separator's left inset.
 export function rowChrome(R, { id, h, pinned = false, selected = false, sep = null, click, right, child, tip = null }) {
   const { t } = R;
-  const lit = selected ? t.selected : pinned ? t.hover : null;
+  const lit = pinned ? t.hover : null;
   return div()
     .relative()
     .h(h)
@@ -35,7 +35,7 @@ export function rowChrome(R, { id, h, pinned = false, selected = false, sep = nu
       .id(id)
       .size_full()
       .when(Boolean(lit), (el) => el.bg(lit))
-      .hover((s) => s.bg(selected || pinned ? alpha(t.selected, 1.6) : t.hover))
+      .hover((s) => s.bg(pinned ? alpha(t.selected, 1.6) : t.hover))
       .cursor_pointer()
       .when(Boolean(tip), (el) => el.tooltip(tip))
       .on_click((_e, cx) => click?.(cx))
