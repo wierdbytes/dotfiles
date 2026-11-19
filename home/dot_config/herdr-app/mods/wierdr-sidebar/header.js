@@ -21,26 +21,41 @@ export class Top {
 
 // The agents' statuses as one ring (Wierdr's StatusRing): a dash per agent from the top,
 // clockwise, the most urgent first (needs you, done, working) in their colors and idle
-// ones faint, as a track; past DASHES agents an arc per status, each at least LEAST of
-// the ring. Inside, how many have the most urgent status, in its color (idle's dim).
+// ones faint, as a track. Each dash's length follows its status's WEIGHT (needs you = 1):
+// 2 needs you, 1 done, 4 working, 5 idle → 2 + 0.5 + 1 + 0.5 = 4, so 50% / 12.5% / 25% /
+// 12.5% of the ring. Past DASHES agents an arc per status, by the same weights, each at
+// least LEAST of the ring. Inside, how many have the most urgent status, in its color
+// (idle's dim).
 const RADIUS = px(14), LINE = px(3.5), GAP = px(1.5), DASHES = 24, LEAST = 0.1;
 const SIZE = 2 * RADIUS + LINE;
+export const WEIGHT = { blocked: 1, done: 0.5, working: 0.25, idle: 0.1 };
 
 export function segments(counts) {
   const present = ORDER.filter((s) => counts[s] > 0).map((s) => [s, counts[s]]);
   const total = present.reduce((n, [, c]) => n + c, 0);
   if (!total) return [];
   const gap = GAP / (2 * Math.PI * RADIUS);
-  if (total <= DASHES) {
-    const share = 1 / total;
-    return present.flatMap(([s, n]) => Array(n).fill(s)).map((s, i) => ({ status: s, from: i * share + gap / 2, to: (i + 1) * share - gap / 2 }));
-  }
-  const weights = present.map(([, n]) => Math.max(n / total, LEAST));
-  const sum = weights.reduce((a, b) => a + b, 0);
+  // A slot of `share` from `from`, less the gap: at most half the slot, so tiny dashes still show.
+  const slot = (status, from, share) => {
+    const g = Math.min(gap, share / 2);
+    return { status, from: from + g / 2, to: from + share - g / 2 };
+  };
   let at = 0;
+  if (total <= DASHES) {
+    const sum = present.reduce((n, [s, c]) => n + c * WEIGHT[s], 0);
+    return present.flatMap(([s, n]) => Array(n).fill(s)).map((s) => {
+      const share = WEIGHT[s] / sum;
+      const seg = slot(s, at, share);
+      at += share;
+      return seg;
+    });
+  }
+  const raw = present.reduce((n, [s, c]) => n + c * WEIGHT[s], 0);
+  const floored = present.map(([s, n]) => Math.max((n * WEIGHT[s]) / raw, LEAST));
+  const sum = floored.reduce((a, b) => a + b, 0);
   return present.map(([s], i) => {
-    const share = weights[i] / sum;
-    const seg = { status: s, from: at + gap / 2, to: at + share - gap / 2 };
+    const share = floored[i] / sum;
+    const seg = slot(s, at, share);
     at += share;
     return seg;
   });
