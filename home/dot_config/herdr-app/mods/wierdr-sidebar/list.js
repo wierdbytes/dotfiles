@@ -16,7 +16,7 @@ import { div, Background, PathBuilder } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
 import { spaces, machines, panes, focused, run, exec, hc, theme, settings, shared, setShared, setAgentOrder, watchFolder, window, checking } from "herdr";
 import { M, px, mono, icon, alpha, statusColor } from "./look.js";
-import { snapshot, sum, ageTick, age, kidStatus, wantedStamps, setStamp, phaseOf } from "./model.js";
+import { snapshot, sum, ageTick, age, kidStatus, wantedStamps, setStamp, phaseOf, isAgent, chipOwners, termTally, shownKids, termOwners } from "./model.js";
 import { rowChrome, agentContent, kidContent, paneContent } from "./rows.js";
 import { openMenu, openKid, focusPane, KEEP } from "./actions.js";
 import { Sessions } from "./sessions.js";
@@ -68,6 +68,11 @@ export class List {
     this.foldedMachines = new Set(shared(FOLDED_MACHINES) ?? []);
     this.foldedAgents = new Set(shared(FOLDED_AGENTS) ?? []);
     this.foldUntil = {};
+    // The agents whose `>_` chip is open (their terminals show); the others' come folded.
+    // Not kept: one left with no terminals drops out (`foldEndedTerms`), so the next ones
+    // it starts come folded again.
+    this.openTerms = new Set();
+    this.termsUntil = {};
     this.scroll = { off: 0, animateUntil: 0 };
     this.measured = {};
     this.sessScroll = { off: 0, animateUntil: 0 };
@@ -256,6 +261,28 @@ export class List {
     return !set.has(key) || Date.now() < (this.foldUntil[key] ?? 0);
   }
 
+  // Shows or hides the terminals an agent or sub-agent started (its `>_` chip).
+  toggleTerms(address, cx) {
+    if (this.openTerms.has(address)) {
+      this.openTerms.delete(address);
+      this.termsUntil[address] = Date.now() + FOLD_KEEP_MS;
+      cx.timer.after(FOLD_KEEP_MS + 20, (cx) => cx.notify());
+    } else this.openTerms.add(address);
+    cx.notify();
+  }
+
+  // Its terminals shown, or still closing over them.
+  termsDrawn(address) {
+    return this.openTerms.has(address) || Date.now() < (this.termsUntil[address] ?? 0);
+  }
+
+  // Agents left without terminals fold theirs again.
+  foldEndedTerms(all) {
+    if (!this.openTerms.size) return;
+    const owners = termOwners(all);
+    for (const a of this.openTerms) if (!owners.has(a)) this.openTerms.delete(a);
+  }
+
   // ---- pieces -----------------------------------------------------------------------------------
 
   avatar(s, t, size) {
@@ -403,37 +430,47 @@ export class List {
         continue;
       }
       const r = l.r;
-      const open = r.kids.length > 0 && !this.foldedAgents.has(r.a.address);
-      const drawKids = r.kids.length > 0 && this.drawn(this.foldedAgents, r.a.address);
-      const kidH = (k) => (k.t.status != null || k.t.report != null ? M.kidH : M.kidTermH);
-      const kidsH = r.kids.reduce((n, k) => n + kidH(k), 0);
-      const kids = [...r.kids].reverse();
-      const toggle = (cx) => this.toggle(this.foldedAgents, r.a.address, FOLDED_AGENTS, cx);
+      const addr = r.a.address;
+      const agentsOpen = !this.foldedAgents.has(addr);
+      // What shows (heights, order) and what's drawn (with rows still folding away).
+      const shown = shownKids(r.kids, agentsOpen, (a) => this.openTerms.has(a));
+      const drawnKids = shownKids(r.kids, this.drawn(this.foldedAgents, addr), (a) => this.termsDrawn(a));
+      const shownSet = new Set(shown.map((k) => k.t.address));
+      const owners = chipOwners(r.kids);
+      const kidH = (k) => (isAgent(k.t) ? M.kidH : M.kidTermH);
+      const kidsH = shown.reduce((n, k) => n + kidH(k), 0);
+      const drawn = [...drawnKids].reverse();
+      const toggleAgents = (cx) => this.toggle(this.foldedAgents, addr, FOLDED_AGENTS, cx);
+      const termsOf = (a) => ({
+        terms: termTally(a, r.kids, owners),
+        termsOpen: this.openTerms.has(a),
+        toggleTerms: (cx) => this.toggleTerms(a, cx),
+      });
       const box = div()
         .id(`kids-${r.pane}`)
         .w_full()
         .flex_none()
-        .h(open ? kidsH : 0)
+        .h(kidsH)
         .overflow_hidden()
         .spring("height", FOLD)
-        .when(drawKids, (el) => el.child(v_flex().w_full().flex_none().children(kids.map((k) => rowChrome(R, {
+        .when(drawn.length > 0, (el) => el.child(v_flex().w_full().flex_none().children(drawn.map((k) => rowChrome(R, {
           id: `kid-${k.t.address}`,
           h: kidH(k),
           pinned: l.pinned,
           selected: Boolean(k.pane) && k.pane === sel,
           click: () => openKid(k.t.address),
           right: () => openMenu({ kind: "kid", terminal: k.t.address }, { width: 210, height: 3 * 31 + 20 }),
-          child: kidContent(R, k),
+          child: kidContent(R, k, isAgent(k.t) ? termsOf(k.t.address) : {}),
         })))));
       els.push(box);
-      if (open) {
-        let y = h;
-        for (const k of kids) {
-          if (k.pane) { order.push(k.pane); spans.push([k.pane, y, kidH(k)]); }
-          y += kidH(k);
-        }
-        h += kidsH;
-      } else for (const k of kids) if (k.pane) order.push(k.pane);
+      let y = h;
+      for (const k of [...r.kids].reverse()) {
+        if (k.pane) order.push(k.pane);
+        if (!shownSet.has(k.t.address)) continue;
+        if (k.pane) spans.push([k.pane, y, kidH(k)]);
+        y += kidH(k);
+      }
+      h += kidsH;
       els.push(rowChrome(R, {
         id: r.key,
         h: M.agentH,
@@ -442,13 +479,13 @@ export class List {
         sep: l.sep,
         click: () => focusPane(r.pane),
         right: () => openMenu({ kind: "row", pane: r.pane, terminal: r.a.address }, { width: 210, height: 5 * 31 + 20 }),
-        child: agentContent(R, r, { open, toggle }),
+        child: agentContent(R, r, { agentsOpen, toggleAgents, ...termsOf(addr) }),
       }));
       spans.push([r.pane, h, M.agentH]);
       h += M.agentH;
       order.push(r.pane);
       agentOrder.push(r.a.address);
-      for (const k of kids) if (k.pane && R.agentBy.has(k.t.address)) agentOrder.push(k.t.address);
+      for (const k of [...r.kids].reverse()) if (k.pane && R.agentBy.has(k.t.address)) agentOrder.push(k.t.address);
     }
     const rowAt = new Map(spans.map(([pane, top, rh]) => [pane, [h - top - rh, rh]]));
     return { els, h, order, agentOrder, rowAt };
@@ -705,6 +742,7 @@ export class List {
     const now = Date.now();
     const snap = snapshot(now);
     this.stampWant = wantedStamps(snap.byAddr.values());
+    this.foldEndedTerms(snap.byAddr.values());
     const f = focused();
     const R = { ...snap, t, dark: settings().dark !== false, focusedPane: f?.pane ?? null, viewW: this.viewW, due: null };
     R.age = (ms) => {

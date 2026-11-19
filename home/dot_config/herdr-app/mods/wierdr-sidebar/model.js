@@ -180,7 +180,7 @@ export function snapshot(now = Date.now()) {
       const kids = (children.get(up) ?? []).filter((k) => !seen.has(k.address) && seen.add(k.address));
       kids.forEach((k, i) => {
         const last = i === kids.length - 1;
-        out.push({ t: k, lines: [...lead, last ? "└" : "├"], pane: paneOf.get(k.address) ?? null });
+        out.push({ t: k, owner: up, lines: [...lead, last ? "└" : "├"], pane: paneOf.get(k.address) ?? null });
         walk(k.address, [...lead, last ? "" : "│"]);
       });
     };
@@ -278,6 +278,76 @@ export function counted(rows, listed) {
       out.push({ address: k.t.address, status: s, kid: k, rowPane: r.pane });
     }
   }
+  return out;
+}
+
+// How an agent's tree folds (Wierdr's TreeFolds): its sub-agents all at once (the bot chip
+// on the agent's row; open unless folded), and each agent's terminals on their own (the
+// `>_` chip on that agent's or sub-agent's row; folded until it's clicked). A row hidden
+// hides what hangs under it; the lines of what shows are drawn afresh (`relined`).
+
+// For each kid of a tree (depth first, `subtree`), the agent whose `>_` chip it's under: a
+// terminal's row's nearest agent above it (the row's agent, the root, owns its depth-1
+// rows); a terminal a terminal started goes with it. Null for a sub-agent's row.
+export function chipOwners(kids) {
+  const plain = new Map();
+  return kids.map((k) => {
+    if (isAgent(k.t) || !k.owner) return null;
+    const agent = plain.get(k.owner) ?? k.owner;
+    plain.set(k.t.address, agent);
+    return agent;
+  });
+}
+
+// What the `>_` chip of `agent` counts: the terminal rows under it (`chipOwners`).
+export function termTally(agent, kids, owners = chipOwners(kids)) {
+  let n = 0;
+  for (const o of owners) if (o != null && o === agent) n++;
+  return n;
+}
+
+// The kids that show: sub-agents' while `agentsOpen`, an agent's terminals while
+// `termsOpen(agent)`, nothing under a hidden row. Relined.
+export function shownKids(kids, agentsOpen, termsOpen) {
+  const owners = chipOwners(kids);
+  const hidden = new Set();
+  const out = [];
+  kids.forEach((k, i) => {
+    const show = hidden.has(k.owner) ? false : owners[i] != null ? termsOpen(owners[i]) : agentsOpen;
+    if (show) out.push(k);
+    else hidden.add(k.t.address);
+  });
+  return relined(out);
+}
+
+// The lines of a depth-first tree drawn afresh for the rows it shows: each row's own ├,
+// or └ when no sibling follows it; an ancestor's │ past it while that one has a sibling
+// still to come. A row's depth is its lines' count.
+export function relined(kids) {
+  const depths = kids.map((k) => k.lines.length);
+  const last = kids.map((_, i) => {
+    for (let j = i + 1; j < kids.length; j++) {
+      if (depths[j] < depths[i]) break;
+      if (depths[j] === depths[i]) return false;
+    }
+    return true;
+  });
+  let stack = [];
+  return kids.map((k, i) => {
+    const d = Math.max(1, depths[i]);
+    stack = stack.slice(0, d - 1);
+    while (stack.length < d - 1) stack.push(true);
+    const lines = [...stack.map((l) => (l ? "" : "│")), last[i] ? "└" : "├"];
+    stack.push(last[i]);
+    return { ...k, lines };
+  });
+}
+
+// The terminals whose `>_` chip can show (they started a plain terminal): an agent outside
+// it has nothing to unfold, so its chip folds again.
+export function termOwners(all) {
+  const out = new Set();
+  for (const t of all) if (t.state === "live" && !isAgent(t) && t.parent) out.add(t.parent);
   return out;
 }
 

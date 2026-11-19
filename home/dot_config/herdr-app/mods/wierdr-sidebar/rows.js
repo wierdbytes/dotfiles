@@ -2,11 +2,13 @@
 // avatar, full width, hairline separators):
 // - an agent: its title and, where Telegram has the date, its machine and how long it
 //   has been in its status on a pill of that status's color (needs you, done, working;
-//   idle plain); under that its context's ring, model, @effort, its sub-agents' and
-//   terminals' chips (a click folds them) and, pinned, the pin;
+//   idle plain); under that its context's ring, model, @effort, its sub-agents' chip (the
+//   whole tree's; a click folds them, open until then), its own terminals' chip (only those
+//   it started; a click shows or hides them, folded until then) and, pinned, the pin;
 // - a sub-agent over its agent, in a tree drawn upward: its status mark, what it's on,
-//   its age; under that its context's ring (first, as an agent's), model and @effort. A plain terminal an agent
-//   started: its program's icon and name;
+//   its age; under that its context's ring (first, as an agent's), model, @effort and the
+//   small chip of the terminals it started (folded until clicked). A plain terminal an
+//   agent started: its program's icon and name;
 // - another pane: its program's icon, the process in front and under it its folder.
 // The pinned rows sit on a gray ground; the focused pane's row gets an accent ring.
 
@@ -109,15 +111,16 @@ function modelLine(R, term, a, size, { quiet, ringFirst }) {
 }
 
 // A count chip (bot 3, >_ 1): a click folds the agent's children in or out.
-function kidChip(R, id, glyph, n, { open, alert, tip, toggle }) {
+// `compact`: a sub-agent's, on its smaller second line.
+function kidChip(R, id, glyph, n, { open, alert, tip, toggle, compact = false }) {
   const { t } = R;
   const color = alert ? t.blocked : open ? t.foreground : t.muted;
   return h_flex()
     .id(id)
     .flex_none()
-    .h(px(22))
-    .px(px(7))
-    .gap(px(4))
+    .h(px(compact ? 18 : 22))
+    .px(px(compact ? 6 : 7))
+    .gap(px(compact ? 3 : 4))
     .rounded_full()
     .items_center()
     .bg(open ? t.selected : t.hover)
@@ -129,20 +132,25 @@ function kidChip(R, id, glyph, n, { open, alert, tip, toggle }) {
         cx.stop_propagation();
         toggle(cx);
       }))
-    .child(icon(glyph, px(13), color))
-    .child(div().text_size(px(13)).font_medium().text_color(color).child(String(n)));
+    .child(icon(glyph, px(compact ? 12 : 13), color))
+    .child(div().text_size(px(compact ? 12 : 13)).font_medium().text_color(color).child(String(n)));
 }
 
 const plural = (n, one) => `${n} ${one}${n === 1 ? "" : "s"}`;
 
-// An agent's two lines (56 pt).
-export function agentContent(R, r, { open, toggle }) {
+// The `>_` chip of an agent or sub-agent: the terminals it started (`termTally`).
+function termChip(R, id, n, { open, toggle, compact = false }) {
+  return kidChip(R, id, "terminal", n, { open, alert: false, tip: plural(n, "terminal"), toggle, compact });
+}
+
+// An agent's two lines (56 pt). `terms`: the terminals it started itself (its `>_` chip; its
+// sub-agents' are on their own rows).
+export function agentContent(R, r, { agentsOpen, toggleAgents, terms, termsOpen, toggleTerms }) {
   const { t } = R;
   const { a, term } = r;
   const meta = agentMeta(term);
   const machine = a.address.includes("/") ? a.address.split("/")[0] : null;
   const kidAgents = r.kids.filter((k) => isAgent(k.t));
-  const kidTerms = r.kids.length - kidAgents.length;
   const inner = meta?.subagents ?? 0;
   const subTip = [kidAgents.length && plural(kidAgents.length, "sub-agent"), inner && `${inner} in pi`].filter(Boolean).join(" + ");
   return v_flex()
@@ -163,9 +171,11 @@ export function agentContent(R, r, { open, toggle }) {
       .items_center()
       .child(modelLine(R, term, a, px(13), { quiet: a.status === "idle", ringFirst: true }))
       .when(kidAgents.length + inner > 0, (el) => el.child(kidChip(R, `subs-${r.pane}`, "bot", kidAgents.length + inner, {
-        open, alert: kidAgents.some((k) => kidStatus(k.t, R.listed) === "blocked"), tip: subTip, toggle: kidAgents.length ? toggle : null,
+        // In-process sub-agents without rows (pi's) have nothing to fold.
+        open: agentsOpen && kidAgents.length > 0, alert: kidAgents.some((k) => kidStatus(k.t, R.listed) === "blocked"), tip: subTip,
+        toggle: kidAgents.length ? toggleAgents : null,
       })))
-      .when(kidTerms > 0, (el) => el.child(kidChip(R, `terms-${r.pane}`, "terminal", kidTerms, { open, alert: false, tip: plural(kidTerms, "terminal"), toggle })))
+      .when(terms > 0, (el) => el.child(termChip(R, `terms-${r.pane}`, terms, { open: termsOpen, toggle: toggleTerms })))
       .child(div().flex_1())
       .when(a.pinned, (el) => el.child(icon("tg-pin", px(17), t.dim))));
 }
@@ -195,8 +205,9 @@ function treeLines(R, lines, h, mid) {
     .when(l === "│", (el) => el.child(stroke(div()).top(0).bottom(0))));
 }
 
-// A sub-agent (50 pt) or a terminal an agent started (36 pt).
-export function kidContent(R, k) {
+// A sub-agent (50 pt) or a terminal an agent started (36 pt). `terms`: the terminals a
+// sub-agent started (its small `>_` chip).
+export function kidContent(R, k, { terms = 0, termsOpen = false, toggleTerms = null } = {}) {
   const { t } = R;
   const term = k.t;
   if (!isAgent(term)) {
@@ -233,8 +244,10 @@ export function kidContent(R, k) {
       .child(h_flex()
         .h(px(18))
         .pl(px(22))
+        .gap(px(8))
         .items_center()
-        .child(modelLine(R, term, null, px(12.5), { quiet: status === "idle", ringFirst: true }))));
+        .child(modelLine(R, term, null, px(12.5), { quiet: status === "idle", ringFirst: true }))
+        .when(terms > 0, (el) => el.child(termChip(R, `kterms-${term.address}`, terms, { open: termsOpen, toggle: toggleTerms, compact: true })))));
 }
 
 // A plain terminal or a mod pane (60 pt): its icon, the process's name and its folder.
