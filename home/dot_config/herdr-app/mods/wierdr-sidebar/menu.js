@@ -12,7 +12,7 @@ import { v_flex, h_flex } from "gpui-base";
 import { run, props, closeOverlay, theme, spaces, terminals, agents, panes, knownAgents, shared, setShared, keys, window } from "herdr";
 import { icon, alpha, statusColor } from "./look.js";
 import { snapshot, ORDER } from "./model.js";
-import { setPinned, markUnread, markIdle, openKid, keepKid, closeKid, focusPane, openCounted } from "./actions.js";
+import { setPinned, markUnread, markIdle, openKid, keepKid, closeKid, focusPane, openCounted, openMenu } from "./actions.js";
 import { KNOWN } from "./header.js";
 import { tilde } from "./model.js";
 
@@ -48,6 +48,9 @@ export class Menu {
           const list = await knownAgents({ on: machine });
           setShared(KNOWN, { ...(shared(KNOWN) ?? {}), [this.machine]: list });
         } catch { this.failed = true; }
+        // A submenu opened before the agents were known: fit it to them now.
+        const q = props() ?? {};
+        if (this.sub && q.at && q.h && this.height([[{}], this.sub.children()]) !== q.h) { this.reopen(this.sub); return; }
         cx.notify();
       });
     }
@@ -132,14 +135,42 @@ export class Menu {
 
   // The flat list of what's shown: a submenu's items with Back on top, else every section.
   shown(t) {
+    // Reopened straight into a submenu (props().sub: its title).
+    const subTitle = props()?.sub;
+    if (!this.sub && subTitle && !this.leftSub) {
+      this.sub = this.sections(t).flatMap((s) => (Array.isArray(s) ? s : [s])).find((it) => it.title === subTitle && it.children) ?? null;
+    }
     if (this.sub) return [[{ icon: icon("chevron-left", 14, t.muted), title: "Back", back: true }], this.sub.children()];
     return this.sections(t);
   }
 
+  // The popup's height (zoom 1) for these sections, as render() draws them.
+  height(sections) {
+    let h = 10;
+    sections.forEach((s, si) => {
+      if (si > 0 && Array.isArray(s) && Array.isArray(sections[si - 1])) h += 9;
+      for (const it of Array.isArray(s) ? s : [s]) h += it.header ? (si > 0 ? 32 : 27) : ROW;
+    });
+    return h;
+  }
+
+  // A popup can't change its size: open the same menu again, in its place, sized for `sub`.
+  reopen(sub) {
+    const p = props() ?? {};
+    if (!p.at) return false;
+    const t = theme();
+    const { overlay, sub: _old, ...rest } = p;
+    const sections = sub ? [[{ title: "Back" }], sub.children()] : this.sections(t);
+    closeOverlay(overlay);
+    const h = this.height(sections);
+    openMenu({ ...rest, h, ...(sub ? { sub: sub.title } : {}) }, { at: p.at, width: p.width ?? 230, height: h });
+    return true;
+  }
+
   choose(it, cx) {
     if (!it || it.disabled || it.header) return;
-    if (it.back) { this.sub = null; this.at = -1; cx.notify(); return; }
-    if (it.children) { this.sub = it; this.at = -1; cx.notify(); return; }
+    if (it.back) { if (this.reopen(null)) return; this.sub = null; this.leftSub = true; this.at = -1; cx.notify(); return; }
+    if (it.children) { if (this.reopen(it)) return; this.sub = it; this.at = -1; cx.notify(); return; }
     closeOverlay(props()?.overlay);
     it.run?.();
   }
@@ -168,7 +199,7 @@ export class Menu {
         else if (e.key === "up") move(-1);
         else if (e.key === "enter" || e.key === "right" && items[this.at]?.children) this.choose(items[this.at], cx);
         else if (e.key === "escape" || e.key === "left") {
-          if (this.sub) this.sub = null;
+          if (this.sub) { if (!this.reopen(null)) { this.sub = null; this.leftSub = true; } }
           else if (e.key === "escape") closeOverlay(props().overlay);
         } else return;
         cx.stop_propagation();

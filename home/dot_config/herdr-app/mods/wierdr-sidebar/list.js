@@ -341,7 +341,10 @@ export class List {
       .cursor_pointer()
       .hover((st) => st.bg(lit))
       .on_mouse_down("left", (e, cx) => this.press(s, e, cx, hasRows))
-      .on_mouse_down("right", () => openMenu({ kind: "space", space: s.id }, { width: 220, height: 3 * 31 + 20 }))
+      .on_mouse_down("right", (e) => {
+        const at = e.position ? { x: Math.round(e.position.x), y: Math.round(e.position.y) } : undefined;
+        openMenu({ kind: "space", space: s.id, at, width: 220 }, { at, width: 220, height: 3 * 31 + 20 });
+      })
       .child(this.avatar(s, t, M.avatar))
       .child(div().flex_none().max_w(px(220)).truncate().text_size(px(16)).font_semibold().text_color(t.foreground).child(s.name))
       .child(this.gitTail(t, s, g))
